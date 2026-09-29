@@ -62,7 +62,7 @@ export function MarkdownContent({ content, className = '', isUser = false }: Mar
       const headers = headerLine.split('|').map(c => c.trim()).filter(Boolean);
 
       elements.push(
-        <div key={`table-${blockIdx}`} className="my-3 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div key={`table-${blockIdx}`} className="my-3 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm" style={{ WebkitOverflowScrolling: 'touch' }}>
           <table className="w-full text-left text-xs border-collapse">
             <thead className="bg-slate-100 text-slate-800 uppercase font-semibold text-[11px] border-b border-slate-200">
               <tr>

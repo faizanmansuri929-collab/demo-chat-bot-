@@ -340,28 +340,28 @@ function CollegeWebSearchContent() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-6 space-y-6">
+    <div className="max-w-6xl mx-auto py-3 sm:py-6 px-2 sm:px-4 space-y-4 sm:space-y-6">
       {/* Top Banner & Mode Header */}
-      <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden border border-emerald-600/40">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+      <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-7 text-white shadow-xl relative overflow-hidden border border-emerald-600/40">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-5 relative z-10">
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
                 <Globe className="w-3.5 h-3.5 text-emerald-300" /> College Live Web Search
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] sm:text-xs font-semibold flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                Domain Bound Live Search Active
+                Live Search Active
               </span>
               {activeProject && (
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 text-xs font-mono">
-                  Domain: {activeProject.base_domain} ({sources.length} URLs)
+                <span className="px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700 text-[10px] sm:text-xs font-mono">
+                  {activeProject.base_domain} ({sources.length} URLs)
                 </span>
               )}
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
                 {activeProject ? activeProject.college_name : 'College Web Search Assistant'}
               </h1>
             </div>
@@ -372,9 +372,9 @@ function CollegeWebSearchContent() {
           </div>
 
           {/* Project Switcher + Tab Controls */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 self-start md:self-auto shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto shrink-0">
             {/* Project Switcher Dropdown */}
-            <div className="flex items-center gap-1.5 bg-slate-900/80 p-1.5 rounded-2xl border border-emerald-500/30">
+            <div className="flex items-center gap-1.5 bg-slate-900/80 p-1.5 rounded-2xl border border-emerald-500/30 min-w-0">
               <select
                 value={activeProjectId}
                 onChange={(e) => {
@@ -382,7 +382,7 @@ function CollegeWebSearchContent() {
                   setActiveProjectId(pId);
                   router.push(`/college-web-search?project_id=${pId}`);
                 }}
-                className="bg-transparent text-xs font-bold text-emerald-100 focus:outline-none px-2 py-1 cursor-pointer"
+                className="bg-transparent text-xs font-bold text-emerald-100 focus:outline-none px-2 py-1 cursor-pointer truncate w-full"
               >
                 {projects.map((p) => (
                   <option key={p.id} value={p.id} className="bg-slate-900 text-white">
@@ -394,7 +394,7 @@ function CollegeWebSearchContent() {
               <button
                 onClick={() => setShowNewModal(true)}
                 title="Add New College Sitemap"
-                className="p-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all flex items-center gap-1 text-xs font-bold shadow-sm"
+                className="p-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all flex items-center gap-1 text-xs font-bold shadow-sm shrink-0"
               >
                 <FolderPlus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">New College</span>
@@ -402,43 +402,43 @@ function CollegeWebSearchContent() {
             </div>
 
             {/* Tab Controls */}
-            <div className="flex items-center gap-1.5 bg-slate-900/60 p-1.5 rounded-2xl border border-emerald-500/30 backdrop-blur-md">
+            <div className="flex items-center justify-between sm:justify-start gap-1 bg-slate-900/60 p-1 rounded-2xl border border-emerald-500/30 backdrop-blur-md overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
               <button
                 onClick={() => setActiveTab('chat')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap ${
                   activeTab === 'chat'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                     : 'text-emerald-200 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Bot className="w-3.5 h-3.5" /> Live Chat
+                <Bot className="w-3.5 h-3.5" /> Chat
               </button>
               <Link
                 href={`/college-voice-search?project_id=${activeProjectId || ''}`}
-                className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-teal-500 hover:bg-teal-400 text-slate-950 transition-all flex items-center gap-1.5 shadow-md shadow-teal-500/20"
+                className="flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-extrabold bg-teal-500 hover:bg-teal-400 text-slate-950 transition-all flex items-center justify-center gap-1 sm:gap-1.5 shadow-md shadow-teal-500/20 whitespace-nowrap"
                 title="Switch to Realtime Spoken Voice Mode"
               >
-                <Mic className="w-3.5 h-3.5 animate-pulse" /> Voice Mode
+                <Mic className="w-3.5 h-3.5 animate-pulse" /> Voice
               </Link>
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap ${
                   activeTab === 'admin'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                     : 'text-emerald-200 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Sliders className="w-3.5 h-3.5" /> Sitemap URLs ({sources.length})
+                <Sliders className="w-3.5 h-3.5" /> URLs ({sources.length})
               </button>
               <button
                 onClick={() => setActiveTab('test')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap ${
                   activeTab === 'test'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                     : 'text-emerald-200 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Zap className="w-3.5 h-3.5" /> Search Debug
+                <Zap className="w-3.5 h-3.5" /> Debug
               </button>
             </div>
           </div>
@@ -540,48 +540,50 @@ function CollegeWebSearchContent() {
 
       {/* TAB 1: LIVE SEARCH CHAT */}
       {activeTab === 'chat' && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Main Chat Interface (3 cols) */}
-          <div className="lg:col-span-3 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col h-[700px] overflow-hidden">
+          <div className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-sm flex flex-col h-[550px] sm:h-[700px] overflow-hidden">
             {/* Chat Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50/40">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6 bg-slate-50/40">
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} space-y-2`}
+                  className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} space-y-1.5 sm:space-y-2 w-full`}
                 >
                   <div className="flex items-center gap-2 px-1">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       {m.role === 'user' ? 'You' : `${activeProject?.college_name || 'College'} Live AI`}
                     </span>
                     <span className="text-[10px] text-slate-400">{m.timestamp}</span>
                   </div>
 
                   <div
-                    className={`p-4 sm:p-5 rounded-2xl max-w-2xl text-sm leading-relaxed ${
+                    className={`p-3.5 sm:p-5 rounded-2xl max-w-full sm:max-w-2xl text-xs sm:text-sm leading-relaxed overflow-hidden ${
                       m.role === 'user'
                         ? 'bg-gradient-to-tr from-emerald-700 to-teal-700 text-white rounded-br-sm shadow-md'
                         : 'bg-white border border-slate-200/90 text-slate-800 rounded-bl-sm shadow-sm'
                     }`}
                   >
-                    <MarkdownContent
-                      content={m.content}
-                      isUser={m.role === 'user'}
-                      className={m.role === 'user' ? 'text-white' : 'text-slate-800'}
-                    />
+                    <div className="overflow-x-auto">
+                      <MarkdownContent
+                        content={m.content}
+                        isUser={m.role === 'user'}
+                        className={m.role === 'user' ? 'text-white' : 'text-slate-800'}
+                      />
+                    </div>
 
                     {/* SOURCE TRANSPARENCY SECTION */}
                     {m.sources && m.sources.length > 0 && (
-                      <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <div className="mt-3 sm:mt-4 pt-3 border-t border-slate-100 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] sm:text-xs font-bold text-slate-700 flex items-center gap-1.5">
                               <Globe className="w-3.5 h-3.5 text-emerald-600" />
                               Sources used: <span className="text-emerald-700 font-extrabold">{m.sources.length} pages</span>
                             </span>
                           </div>
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
-                            Web searched just now
+                            Live searched
                           </span>
                         </div>
 
@@ -618,18 +620,18 @@ function CollegeWebSearchContent() {
                           className="text-[11px] font-semibold text-slate-500 hover:text-emerald-700 flex items-center gap-1 transition-colors"
                         >
                           <Zap className="w-3 h-3 text-amber-500" />
-                          <span>{expandedDebugId === m.id ? 'Hide Search Trace' : 'Show AI Search Decision & Trace'}</span>
+                          <span>{expandedDebugId === m.id ? 'Hide Trace' : 'Show AI Search Decision & Trace'}</span>
                           {expandedDebugId === m.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         </button>
 
                         {expandedDebugId === m.id && (
-                          <div className="mt-2.5 p-3 bg-slate-900 text-emerald-300 rounded-xl text-xs font-mono space-y-2 border border-slate-700">
-                            <div className="flex justify-between border-b border-slate-800 pb-1.5">
-                              <span className="text-slate-400">Detected Intent:</span>
-                              <span className="text-white font-bold">{m.debug_trace.detected_intent}</span>
+                          <div className="mt-2.5 p-3 bg-slate-900 text-emerald-300 rounded-xl text-xs font-mono space-y-2 border border-slate-700 overflow-x-auto">
+                            <div className="flex justify-between border-b border-slate-800 pb-1.5 gap-2">
+                              <span className="text-slate-400">Intent:</span>
+                              <span className="text-white font-bold truncate">{m.debug_trace.detected_intent}</span>
                             </div>
-                            <div className="flex justify-between border-b border-slate-800 pb-1.5">
-                              <span className="text-slate-400">Optimized Query:</span>
+                            <div className="flex justify-between border-b border-slate-800 pb-1.5 gap-2">
+                              <span className="text-slate-400">Query:</span>
                               <span className="text-emerald-400 truncate max-w-xs">{m.debug_trace.optimized_search_query}</span>
                             </div>
                             <div className="border-b border-slate-800 pb-1.5 space-y-1">
@@ -662,7 +664,7 @@ function CollegeWebSearchContent() {
 
               {/* SEARCH PROGRESS STEP INDICATOR */}
               {loading && (
-                <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 text-emerald-900 text-xs font-semibold animate-pulse shadow-sm">
+                <div className="flex items-center gap-2.5 p-3.5 sm:p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 text-emerald-900 text-xs font-semibold animate-pulse shadow-sm">
                   <RefreshCw className="w-4 h-4 text-emerald-700 animate-spin shrink-0" />
                   <span>{searchStep || `Searching ${activeProject?.base_domain || 'college website'}...`}</span>
                 </div>
@@ -672,8 +674,8 @@ function CollegeWebSearchContent() {
             </div>
 
             {/* Suggested Prompts Pills */}
-            <div className="px-4 py-2.5 bg-white border-t border-slate-100 overflow-x-auto flex items-center gap-2 shrink-0 scrollbar-none">
-              <span className="text-[11px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
+            <div className="px-3 sm:px-4 py-2 bg-white border-t border-slate-100 overflow-x-auto flex items-center gap-1.5 sm:gap-2 shrink-0 scrollbar-none pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-amber-500" /> Prompts:
               </span>
               {suggestedPrompts.map((prompt, idx) => (
@@ -682,7 +684,7 @@ function CollegeWebSearchContent() {
                   type="button"
                   onClick={() => handleSendMessage(prompt)}
                   disabled={loading}
-                  className="px-3 py-1 rounded-full bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-xs whitespace-nowrap transition-all font-medium disabled:opacity-50"
+                  className="px-2.5 sm:px-3 py-1 rounded-full bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-[11px] sm:text-xs whitespace-nowrap transition-all font-medium disabled:opacity-50 shrink-0"
                 >
                   {prompt}
                 </button>
@@ -692,23 +694,23 @@ function CollegeWebSearchContent() {
             {/* Input Form */}
             <form
               onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
-              className="p-3 sm:p-4 bg-white border-t border-slate-200 flex items-center gap-2"
+              className="p-2.5 sm:p-4 bg-white border-t border-slate-200 flex items-center gap-2"
             >
               <input
                 type="text"
-                placeholder={`Ask anything about ${activeProject?.college_name || 'the college'} courses, fees, hostels, or admissions...`}
+                placeholder={`Ask ${activeProject?.college_name || 'college'} courses, fees, hostels...`}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm transition-all"
+                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm transition-all"
               />
               <button
                 type="submit"
                 disabled={loading || !inputMessage.trim()}
-                className="px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm shrink-0"
+                className="px-3.5 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm shrink-0"
               >
                 <Send className="w-4 h-4" />
-                <span className="hidden sm:inline">Search &amp; Ask</span>
+                <span className="hidden sm:inline">Ask AI</span>
               </button>
             </form>
           </div>

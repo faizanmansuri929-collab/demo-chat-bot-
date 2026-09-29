@@ -625,39 +625,39 @@ function CollegeVoiceSearchContent() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto py-5 space-y-5">
+    <div className="max-w-5xl mx-auto py-3 sm:py-5 px-2 sm:px-4 space-y-4 sm:space-y-5">
       {/* SINGLE UNIFIED WINDOW CONTAINER */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl shadow-xl overflow-hidden flex flex-col divide-y divide-slate-100">
+      <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden flex flex-col divide-y divide-slate-100">
         
         {/* WINDOW HEADER: Controls, Language, College & BETA Badge */}
-        <div className="bg-gradient-to-r from-teal-900 via-emerald-950 to-slate-900 text-white p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-teal-900 via-emerald-950 to-slate-900 text-white p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-teal-500/30 text-teal-200 border border-teal-400/40 text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
-                <Mic className="w-3.5 h-3.5 text-teal-300" /> College Voice Web Search
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-teal-500/30 text-teal-200 border border-teal-400/40 text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+                <Mic className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-teal-300" /> Voice Web Search
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[11px] font-black tracking-wider uppercase flex items-center gap-1">
-                <Sparkle className="w-3 h-3 text-amber-300 fill-amber-300" /> BETA v1.2
+              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] sm:text-[11px] font-black tracking-wider uppercase flex items-center gap-1">
+                <Sparkle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-300 fill-amber-300" /> BETA
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
-                <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span className="px-2 py-0.5 sm:px-2.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[11px] sm:text-xs font-semibold flex items-center gap-1 sm:gap-1.5">
+                <Radio className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-400 animate-pulse" />
                 Indian Accent &bull; WebRTC
               </span>
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            <h1 className="text-lg sm:text-2xl font-extrabold text-white tracking-tight">
               {activeProject ? activeProject.college_name : 'College Voice Search'}
             </h1>
-            <p className="text-xs sm:text-sm text-teal-100/80 max-w-2xl">
+            <p className="text-xs sm:text-sm text-teal-100/80 max-w-2xl leading-relaxed">
               Voice answers concisely in natural Indian English/Hindi &bull; Full tables, fee breakdowns &amp; verified sources show on screen.
             </p>
           </div>
 
           {/* Controls: College Selector, Language Toggle, Voice Selector */}
-          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto shrink-0">
             {/* College Project Selector */}
-            <div className="bg-slate-900/90 px-3 py-1.5 rounded-xl border border-teal-500/30 flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-teal-400 shrink-0" />
+            <div className="bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-teal-500/30 flex items-center gap-2 min-w-0">
+              <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-400 shrink-0" />
               <select
                 value={activeProjectId}
                 onChange={(e) => {
@@ -666,7 +666,7 @@ function CollegeVoiceSearchContent() {
                   setActiveProjectId(pId);
                   router.push(`/college-voice-search?project_id=${pId}`);
                 }}
-                className="bg-transparent text-xs font-bold text-teal-100 focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-teal-100 focus:outline-none cursor-pointer truncate w-full"
               >
                 {projects.map((p) => (
                   <option key={p.id} value={p.id} className="bg-slate-900 text-white">
@@ -677,14 +677,14 @@ function CollegeVoiceSearchContent() {
             </div>
 
             {/* Language Toggle: English (India) / Hindi */}
-            <div className="bg-slate-900/90 p-1 rounded-xl border border-teal-500/30 flex items-center gap-1">
+            <div className="bg-slate-900/90 p-1 rounded-xl border border-teal-500/30 flex items-center justify-between sm:justify-start gap-1">
               <button
                 type="button"
                 onClick={() => {
                   if (voiceState !== 'disconnected') handleEndSession();
                   setLanguage('en-IN');
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                className={`flex-1 sm:flex-initial px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 ${
                   language === 'en-IN'
                     ? 'bg-teal-500 text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white'
@@ -698,7 +698,7 @@ function CollegeVoiceSearchContent() {
                   if (voiceState !== 'disconnected') handleEndSession();
                   setLanguage('hi');
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                className={`flex-1 sm:flex-initial px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 ${
                   language === 'hi'
                     ? 'bg-teal-500 text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white'
@@ -710,12 +710,12 @@ function CollegeVoiceSearchContent() {
 
             {/* Voice Tone Selector */}
             <div className="bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-teal-500/30 flex items-center gap-1.5 text-xs font-bold text-teal-200">
-              <Volume2 className="w-3.5 h-3.5 text-teal-400" />
+              <Volume2 className="w-3.5 h-3.5 text-teal-400 shrink-0" />
               <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
                 disabled={voiceState !== 'disconnected' && voiceState !== 'error'}
-                className="bg-transparent text-xs font-bold text-teal-100 focus:outline-none cursor-pointer disabled:opacity-50"
+                className="bg-transparent text-xs font-bold text-teal-100 focus:outline-none cursor-pointer disabled:opacity-50 truncate w-full"
               >
                 <option value="verse" className="bg-slate-900 text-white">Indian Tone (Verse)</option>
                 <option value="coral" className="bg-slate-900 text-white">Warm Tone (Coral)</option>
@@ -728,7 +728,7 @@ function CollegeVoiceSearchContent() {
             {/* Switch to Text Search Link */}
             <Link
               href={`/college-web-search?project_id=${activeProjectId || ''}`}
-              className="bg-slate-900/90 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-teal-500/30 text-xs font-bold text-teal-200 flex items-center gap-1.5 transition-all shadow-sm"
+              className="bg-slate-900/90 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-teal-500/30 text-xs font-bold text-teal-200 flex items-center justify-center gap-1.5 transition-all shadow-sm"
               title="Switch to Text Live Web Search"
             >
               <Globe className="w-3.5 h-3.5 text-teal-400" />
@@ -738,7 +738,7 @@ function CollegeVoiceSearchContent() {
         </div>
 
         {/* VOICE CONTROL ISLAND (Single Unified Window Top Section) */}
-        <div className="p-6 sm:p-7 bg-gradient-to-b from-slate-50/80 to-white flex flex-col items-center text-center relative overflow-hidden space-y-5">
+        <div className="p-4 sm:p-7 bg-gradient-to-b from-slate-50/80 to-white flex flex-col items-center text-center relative overflow-hidden space-y-4 sm:space-y-5">
           {/* Ambient Wave FX when active */}
           {(voiceState === 'listening' || voiceState === 'speaking') && (
             <div className="absolute inset-0 bg-teal-50/50 pointer-events-none animate-pulse" />
@@ -862,16 +862,16 @@ function CollegeVoiceSearchContent() {
           )}
 
           {/* HORIZONTAL SUGGESTED QUESTIONS CHIPS */}
-          <div className="w-full max-w-3xl pt-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto scrollbar-none text-left z-10">
-            <span className="text-[11px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-500" /> Try asking:
+          <div className="w-full max-w-3xl pt-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto scrollbar-none text-left z-10 pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-500" /> Try:
             </span>
             {suggestedQuestions.map((q, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => askQuery(q)}
-                className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-teal-50 hover:border-teal-300 text-slate-700 hover:text-teal-900 text-xs whitespace-nowrap font-medium border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-slate-100 hover:bg-teal-50 hover:border-teal-300 text-slate-700 hover:text-teal-900 text-[11px] sm:text-xs whitespace-nowrap font-medium border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
               >
                 <Mic className="w-3 h-3 text-teal-600" />
                 <span>"{q}"</span>
@@ -881,36 +881,36 @@ function CollegeVoiceSearchContent() {
         </div>
 
         {/* INTEGRATED LIVE RESPONSE & CONVERSATION FEED */}
-        <div className="p-6 bg-slate-50/50 flex flex-col space-y-5 min-h-[420px]">
+        <div className="p-3.5 sm:p-6 bg-slate-50/50 flex flex-col space-y-4 sm:space-y-5 min-h-[350px] sm:min-h-[420px]">
           <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-teal-700" />
-              <h3 className="font-extrabold text-sm text-slate-900">
-                Live Voice &amp; Detailed Screen Output
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <MessageSquare className="w-4 h-4 text-teal-700 shrink-0" />
+              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900">
+                Live Voice &amp; Detailed Output
               </h3>
-              <span className="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[10px] font-bold">
-                Spoken + Rich Text Tables
+              <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[9px] sm:text-[10px] font-bold">
+                Spoken + Tables
               </span>
             </div>
             {messages.length > 0 && (
               <button
                 onClick={() => setMessages([])}
-                className="text-xs text-slate-400 hover:text-slate-600 font-semibold"
+                className="text-[11px] sm:text-xs text-slate-400 hover:text-slate-600 font-semibold"
               >
-                Clear Transcript
+                Clear
               </button>
             )}
           </div>
 
           {/* Messages Area */}
-          <div className="space-y-5 overflow-y-auto max-h-[550px] pr-1">
+          <div className="space-y-4 sm:space-y-5 overflow-y-auto max-h-[550px] pr-0.5 sm:pr-1">
             {messages.length === 0 && !currentAssistantText && (
-              <div className="text-center py-12 text-slate-400 text-xs space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto text-teal-600 shadow-sm">
-                  <Volume2 className="w-6 h-6 text-teal-600" />
+              <div className="text-center py-8 sm:py-12 text-slate-400 text-xs space-y-2 px-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto text-teal-600 shadow-sm">
+                  <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />
                 </div>
-                <div className="font-bold text-slate-700 text-sm">No spoken messages yet</div>
-                <p className="max-w-md mx-auto text-slate-500">
+                <div className="font-bold text-slate-700 text-xs sm:text-sm">No spoken messages yet</div>
+                <p className="max-w-md mx-auto text-[11px] sm:text-xs text-slate-500">
                   Click <strong>Start Voice</strong> above and speak. The AI will speak a concise summary aloud, and all full detail tables (tuition fees, courses, hostel rates, criteria) will automatically appear right here!
                 </p>
               </div>
@@ -919,17 +919,17 @@ function CollegeVoiceSearchContent() {
             {messages.map((m) => (
               <div
                 key={m.id}
-                className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} space-y-1.5`}
+                className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} space-y-1.5 w-full`}
               >
                 <div className="flex items-center gap-2 px-1">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     {m.role === 'user' ? 'You (Spoken)' : `${activeProject?.college_name || 'College'} AI`}
                   </span>
                   <span className="text-[10px] text-slate-400">{m.timestamp}</span>
                 </div>
 
                 <div
-                  className={`p-4 sm:p-5 rounded-2xl max-w-3xl text-sm leading-relaxed ${
+                  className={`p-3.5 sm:p-5 rounded-2xl max-w-full sm:max-w-3xl text-xs sm:text-sm leading-relaxed overflow-hidden ${
                     m.role === 'user'
                       ? 'bg-gradient-to-tr from-teal-800 to-emerald-800 text-white rounded-br-sm shadow-md'
                       : 'bg-white border border-slate-200/90 text-slate-800 rounded-bl-sm shadow-sm'
@@ -940,17 +940,17 @@ function CollegeVoiceSearchContent() {
                     <div className="space-y-3">
                       {/* Only display separate Spoken Answer callout if spokenText is distinctly different from content */}
                       {m.spokenText && m.content && m.content.trim() !== m.spokenText.trim() && (m.sources?.length || m.content.length > m.spokenText.length + 30) ? (
-                        <div className="p-3 rounded-xl bg-teal-50/80 border border-teal-200 text-teal-950 font-medium text-xs flex items-start gap-2">
-                          <Volume2 className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                        <div className="p-2.5 sm:p-3 rounded-xl bg-teal-50/80 border border-teal-200 text-teal-950 font-medium text-xs flex items-start gap-2">
+                          <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-700 shrink-0 mt-0.5" />
                           <div>
-                            <strong className="block font-bold text-teal-900">Spoken Answer:</strong>
-                            <p className="italic">"{m.spokenText}"</p>
+                            <strong className="block font-bold text-teal-900 text-xs">Spoken Answer:</strong>
+                            <p className="italic text-xs">"{m.spokenText}"</p>
                           </div>
                         </div>
                       ) : null}
 
                       {/* FULL DETAILED MARKDOWN CONTENT (Tables, Lists, Numbers) */}
-                      <div className="pt-1">
+                      <div className="pt-1 overflow-x-auto">
                         <MarkdownContent
                           content={m.content || m.spokenText || ''}
                           isUser={false}
@@ -960,9 +960,9 @@ function CollegeVoiceSearchContent() {
 
                       {/* VERIFIED SOURCES TRANSPARENCY SECTION */}
                       {m.sources && m.sources.length > 0 && (
-                        <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <div className="mt-3 sm:mt-4 pt-3 border-t border-slate-100 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-1">
+                            <span className="text-[11px] sm:text-xs font-bold text-slate-700 flex items-center gap-1.5">
                               <Globe className="w-3.5 h-3.5 text-teal-600" />
                               Sources used: <strong className="text-teal-800">{m.sources.length} official pages</strong>
                             </span>
@@ -1009,7 +1009,7 @@ function CollegeVoiceSearchContent() {
                   <Volume2 className="w-3 h-3 text-teal-600 animate-bounce" />
                   Speaking Aloud...
                 </span>
-                <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-slate-800 text-sm max-w-xl shadow-xs">
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-teal-50 border border-teal-200 text-slate-800 text-xs sm:text-sm max-w-full sm:max-w-xl shadow-xs">
                   <p className="whitespace-pre-wrap font-medium">{currentAssistantText}</p>
                 </div>
               </div>
@@ -1020,10 +1020,10 @@ function CollegeVoiceSearchContent() {
         </div>
 
         {/* BOTTOM HELPER BAR */}
-        <div className="p-4 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
+        <div className="p-3 sm:p-4 bg-white flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 text-[11px] sm:text-xs text-slate-500">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-center sm:text-left">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Domain-bound strictly to <strong>{activeProject?.base_domain}</strong>. No hallucinations or outside web sources.</span>
+            <span>Domain-bound strictly to <strong>{activeProject?.base_domain}</strong>.</span>
           </div>
 
           <div className="flex items-center gap-3">

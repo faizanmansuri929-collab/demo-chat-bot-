@@ -66,23 +66,23 @@ export default function HomePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 space-y-10">
+    <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 space-y-6 sm:space-y-10">
       {/* Featured Spotlight: NEW College Voice Web Search */}
-      <div className="bg-gradient-to-r from-teal-900 via-emerald-900 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-5 border border-teal-500/40">
-        <div className="space-y-2 z-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-teal-500/30 text-teal-200 border border-teal-400/30 text-xs font-bold flex items-center gap-1.5">
+      <div className="bg-gradient-to-r from-teal-900 via-emerald-900 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-5 border border-teal-500/40">
+        <div className="space-y-1.5 sm:space-y-2 z-10">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-teal-500/30 text-teal-200 border border-teal-400/30 text-[11px] sm:text-xs font-bold flex items-center gap-1.5">
               <Mic className="w-3.5 h-3.5 text-teal-300" /> College Voice Web Search
             </span>
             <span className="px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-black tracking-wider uppercase">
               BETA
             </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-xs font-semibold flex items-center gap-1">
+            <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[11px] sm:text-xs font-semibold flex items-center gap-1">
               <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
               Indian Accent WebRTC
             </span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+          <h2 className="text-lg sm:text-2xl font-extrabold tracking-tight text-white">
             Spoken College Voice Assistant
           </h2>
           <p className="text-xs sm:text-sm text-teal-100 max-w-xl leading-relaxed">
@@ -92,7 +92,7 @@ export default function HomePage() {
 
         <Link
           href="/college-voice-search"
-          className="z-10 px-5 py-3.5 bg-teal-400 hover:bg-teal-300 text-slate-950 font-extrabold rounded-2xl shadow-lg flex items-center justify-center gap-2 text-sm transition-all shrink-0"
+          className="z-10 px-4 sm:px-5 py-3 sm:py-3.5 bg-teal-400 hover:bg-teal-300 text-slate-950 font-extrabold rounded-2xl shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm transition-all shrink-0 w-full sm:w-auto"
         >
           <Mic className="w-4 h-4" />
           <span>Launch Voice Search</span>
@@ -101,21 +101,21 @@ export default function HomePage() {
       </div>
 
       {/* Featured Spotlight: College Live Web Search (Text) */}
-      <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-5 border border-emerald-500/40">
-        <div className="space-y-2 z-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-xs font-bold flex items-center gap-1.5">
+      <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-7 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-5 border border-emerald-500/40">
+        <div className="space-y-1.5 sm:space-y-2 z-10">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-[11px] sm:text-xs font-bold flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5 text-emerald-300" /> College Text Web Search
             </span>
             <span className="px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold uppercase">
               BETA
             </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-xs font-semibold flex items-center gap-1">
+            <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[11px] sm:text-xs font-semibold flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Dynamic Sitemap Discovery
             </span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+          <h2 className="text-lg sm:text-2xl font-extrabold tracking-tight text-white">
             College &amp; University Live Web Search
           </h2>
           <p className="text-xs sm:text-sm text-emerald-100 max-w-xl leading-relaxed">
@@ -125,7 +125,7 @@ export default function HomePage() {
 
         <Link
           href="/college-web-search"
-          className="z-10 px-5 py-3.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold rounded-2xl shadow-lg flex items-center justify-center gap-2 text-sm transition-all shrink-0"
+          className="z-10 px-4 sm:px-5 py-3 sm:py-3.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold rounded-2xl shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm transition-all shrink-0 w-full sm:w-auto"
         >
           <Bot className="w-4 h-4" />
           <span>Launch Web Search</span>
@@ -134,8 +134,8 @@ export default function HomePage() {
       </div>
 
       {/* Featured Spotlight: XYZ College AI Assistant */}
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-        <div className="space-y-1.5 z-10">
+      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 rounded-2xl p-4 sm:p-6 text-white shadow-lg relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-5">
+        <div className="space-y-1 sm:space-y-1.5 z-10">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur text-xs font-semibold flex items-center gap-1.5 text-blue-100">
               <Award className="w-3.5 h-3.5 text-amber-300" /> College RAG Portal
@@ -144,7 +144,7 @@ export default function HomePage() {
               REAP 1023 / 1050
             </span>
           </div>
-          <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+          <h3 className="text-base sm:text-xl font-bold tracking-tight text-white">
             XYZ Group of Colleges AI Assistant
           </h3>
           <p className="text-xs text-blue-100 max-w-xl leading-relaxed">
@@ -154,7 +154,7 @@ export default function HomePage() {
 
         <Link
           href="/xyz-college"
-          className="z-10 px-4 py-2.5 bg-white hover:bg-blue-50 text-blue-900 font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-xs sm:text-sm transition-all shrink-0"
+          className="z-10 px-4 py-2.5 bg-white hover:bg-blue-50 text-blue-900 font-bold rounded-xl shadow-md flex items-center justify-center gap-2 text-xs sm:text-sm transition-all shrink-0 w-full sm:w-auto"
         >
           <GraduationCap className="w-4 h-4 text-blue-700" />
           <span>Open AI Portal</span>
@@ -163,34 +163,38 @@ export default function HomePage() {
       </div>
 
       {/* Hero Header */}
-      <div className="text-center space-y-3">
+      <div className="text-center space-y-2 sm:space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold shadow-sm">
-          <Zap className="w-3.5 h-3.5 text-teal-600" /> 4 High-Performance Chatbot Templates
+          <Zap className="w-3.5 h-3.5 text-teal-600" /> 4 Chatbot Templates
         </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+        <h1 className="text-2xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
           Universal Website AI Platform <br />
           <span className="bg-gradient-to-r from-teal-600 via-emerald-600 to-blue-600 bg-clip-text text-transparent">
             Choose Your Chatbot Template
           </span>
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-xs sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
           Select between <strong>College Voice Web Search</strong>, <strong>College Text Web Search</strong>, <strong>Zero-LLM Hardcoded Chatbot</strong>, or <strong>Dynamic AI RAG Chatbot</strong>.
         </p>
       </div>
 
       {/* Main Creation Card */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+      <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-sm space-y-5 sm:space-y-6">
         {/* ENGINE MODE SELECTOR - 4 OPTIONS */}
         <div className="space-y-3">
-          <label className="block text-sm font-extrabold text-slate-900">
+          <label className="block text-xs sm:text-sm font-extrabold text-slate-900">
             Select Chatbot Template
           </label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Option 1: College Voice Web Search (NEW) */}
             <button
               type="button"
-              onClick={() => setBotMode('voice_search')}
-              className={`p-4 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              onClick={() => {
+                setBotMode('voice_search');
+                setUrl('https://www.poornima.org/sitemap.xml');
+                setCollegeName('Poornima University');
+              }}
+              className={`p-3.5 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                 botMode === 'voice_search'
                   ? 'border-teal-600 bg-teal-50/90 text-teal-950 ring-2 ring-teal-500/20 shadow-md'
                   : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700'
@@ -198,9 +202,9 @@ export default function HomePage() {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <div className="font-extrabold text-sm sm:text-base flex items-center gap-1.5 text-teal-900">
-                    <Mic className="w-4 h-4 text-teal-600" />
-                    <span>College Voice Web Search</span>
+                  <div className="font-extrabold text-xs sm:text-base flex items-center gap-1.5 text-teal-900">
+                    <Mic className="w-4 h-4 text-teal-600 shrink-0" />
+                    <span>College Voice Search</span>
                   </div>
                   {botMode === 'voice_search' ? (
                     <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-bold uppercase">
@@ -208,25 +212,29 @@ export default function HomePage() {
                     </span>
                   ) : (
                     <span className="px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold uppercase">
-                      New Voice
+                      New
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  OpenAI Realtime voice conversation → user speaks → live college web search → concise spoken response with citations.
+                <p className="text-[11px] sm:text-xs text-slate-600 mt-2 leading-relaxed">
+                  OpenAI Realtime voice conversation → speak naturally → live search on college sitemap → concise spoken response.
                 </p>
               </div>
-              <div className="mt-3 pt-2.5 border-t border-teal-200/60 flex items-center gap-1.5 text-[11px] font-semibold text-teal-700">
-                <Radio className="w-3 h-3 text-teal-600 animate-pulse" />
-                Realtime WebRTC &bull; Spoken Audio &bull; Live Search
+              <div className="mt-2.5 pt-2 border-t border-teal-200/60 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-teal-700">
+                <Radio className="w-3 h-3 text-teal-600 animate-pulse shrink-0" />
+                Realtime WebRTC &bull; Spoken Audio
               </div>
             </button>
 
             {/* Option 2: College Text Web Search */}
             <button
               type="button"
-              onClick={() => setBotMode('web_search')}
-              className={`p-4 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              onClick={() => {
+                setBotMode('web_search');
+                setUrl('https://www.poornima.org/sitemap.xml');
+                setCollegeName('Poornima University');
+              }}
+              className={`p-3.5 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                 botMode === 'web_search'
                   ? 'border-emerald-600 bg-emerald-50/90 text-emerald-950 ring-2 ring-emerald-500/20 shadow-md'
                   : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700'
@@ -234,8 +242,8 @@ export default function HomePage() {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <div className="font-extrabold text-sm sm:text-base flex items-center gap-1.5 text-emerald-900">
-                    <Globe className="w-4 h-4 text-emerald-600" />
+                  <div className="font-extrabold text-xs sm:text-base flex items-center gap-1.5 text-emerald-900">
+                    <Globe className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>College Web Search</span>
                   </div>
                   {botMode === 'web_search' && (
@@ -244,21 +252,24 @@ export default function HomePage() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Text input → OpenAI selects top official pages from college sitemap → live web search on domain → grounded answers with citations.
+                <p className="text-[11px] sm:text-xs text-slate-600 mt-2 leading-relaxed">
+                  Text input → dynamic sitemap link discovery → live web search on domain → grounded answers with citations.
                 </p>
               </div>
-              <div className="mt-3 pt-2.5 border-t border-emerald-200/60 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Live Text Search &bull; Dynamic Sitemap &bull; Citations
+              <div className="mt-2.5 pt-2 border-t border-emerald-200/60 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-emerald-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                Live Text Search &bull; Citations
               </div>
             </button>
 
             {/* Option 3: Hardcoded Option */}
             <button
               type="button"
-              onClick={() => setBotMode('hardcoded')}
-              className={`p-4 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              onClick={() => {
+                setBotMode('hardcoded');
+                setUrl('https://www.xyzcollege.edu.in/');
+              }}
+              className={`p-3.5 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                 botMode === 'hardcoded'
                   ? 'border-blue-600 bg-blue-50/90 text-blue-950 ring-2 ring-blue-500/20 shadow-md'
                   : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700'
@@ -266,8 +277,8 @@ export default function HomePage() {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <div className="font-extrabold text-sm sm:text-base flex items-center gap-1.5 text-blue-900">
-                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  <div className="font-extrabold text-xs sm:text-base flex items-center gap-1.5 text-blue-900">
+                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
                     <span>Hardcoded Chatbot</span>
                   </div>
                   {botMode === 'hardcoded' && (
@@ -276,21 +287,24 @@ export default function HomePage() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  One-time crawl → Predefined FAQ dataset saved in DB → <strong>0 LLM calls at runtime</strong> with 7-day TTL caching.
+                <p className="text-[11px] sm:text-xs text-slate-600 mt-2 leading-relaxed">
+                  One-time crawl → FAQ dataset saved in DB → <strong>0 LLM calls at runtime</strong> with 7-day TTL caching.
                 </p>
               </div>
-              <div className="mt-3 pt-2.5 border-t border-blue-200/60 flex items-center gap-1.5 text-[11px] font-semibold text-blue-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                Instant Speed &bull; Zero Runtime Cost &bull; Leads
+              <div className="mt-2.5 pt-2 border-t border-blue-200/60 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-blue-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                Instant Speed &bull; Zero Runtime Cost
               </div>
             </button>
 
             {/* Option 4: AI RAG Option */}
             <button
               type="button"
-              onClick={() => setBotMode('ai')}
-              className={`p-4 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              onClick={() => {
+                setBotMode('ai');
+                setUrl('https://www.xyzcollege.edu.in/');
+              }}
+              className={`p-3.5 sm:p-5 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                 botMode === 'ai'
                   ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 ring-2 ring-indigo-500/20 shadow-md'
                   : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700'
@@ -298,8 +312,8 @@ export default function HomePage() {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <div className="font-extrabold text-sm sm:text-base flex items-center gap-1.5 text-indigo-900">
-                    <Bot className="w-4 h-4 text-indigo-600" />
+                  <div className="font-extrabold text-xs sm:text-base flex items-center gap-1.5 text-indigo-900">
+                    <Bot className="w-4 h-4 text-indigo-600 shrink-0" />
                     <span>AI / RAG Chatbot</span>
                   </div>
                   {botMode === 'ai' && (
@@ -308,43 +322,81 @@ export default function HomePage() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-slate-600 mt-2 leading-relaxed">
                   Vector index + semantic retrieval + live LLM reasoning for every message with real website citations.
                 </p>
               </div>
-              <div className="mt-3 pt-2.5 border-t border-indigo-200/60 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                Dynamic Reasoning &bull; Full Text Retrieval
+              <div className="mt-2.5 pt-2 border-t border-indigo-200/60 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-indigo-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                Dynamic Reasoning &bull; Semantic Search
               </div>
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* URL Input */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-bold text-slate-900">
-                Website URL to Ingest
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          {/* College Name input for Voice & Web Search */}
+          {(botMode === 'voice_search' || botMode === 'web_search') && (
+            <div className="space-y-1.5 sm:space-y-2">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900">
+                College / University Name
               </label>
-              <button
-                type="button"
-                onClick={() => setUrl('https://www.xyzcollege.edu.in/')}
-                className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
-              >
-                <Sparkles className="w-3 h-3" /> Quick Fill: xyzcollege.edu.in
-              </button>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 sm:pl-4 flex items-center pointer-events-none text-slate-400">
+                  <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. Poornima University, IIT Delhi"
+                  value={collegeName}
+                  onChange={(e) => setCollegeName(e.target.value)}
+                  className="w-full pl-10 sm:pl-11 pr-3 sm:pr-4 py-2.5 sm:py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 text-xs sm:text-base transition-all"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          {/* URL Input */}
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900">
+                {botMode === 'voice_search' || botMode === 'web_search' ? 'Sitemap XML / Website URL' : 'Website URL to Ingest'}
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCollegeName('Poornima University');
+                    setUrl('https://www.poornima.org/sitemap.xml');
+                  }}
+                  className="text-[11px] sm:text-xs text-teal-600 hover:text-teal-800 font-semibold flex items-center gap-0.5"
+                >
+                  <Sparkles className="w-3 h-3 text-teal-500" /> poornima.org
+                </button>
+                <span className="text-slate-300">&bull;</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCollegeName('XYZ College');
+                    setUrl('https://www.xyzcollege.edu.in/');
+                  }}
+                  className="text-[11px] sm:text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5"
+                >
+                  xyzcollege.edu.in
+                </button>
+              </div>
             </div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                <Globe className="w-5 h-5" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 sm:pl-4 flex items-center pointer-events-none text-slate-400">
+                <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </div>
               <input
                 type="text"
-                placeholder="https://www.xyzcollege.edu.in/ or your-website.com"
+                placeholder={botMode === 'voice_search' || botMode === 'web_search' ? 'https://www.poornima.org/sitemap.xml' : 'https://www.xyzcollege.edu.in/'}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base transition-all"
+                className="w-full pl-10 sm:pl-11 pr-3 sm:pr-4 py-2.5 sm:py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-base transition-all"
                 required
               />
             </div>
@@ -352,15 +404,15 @@ export default function HomePage() {
 
           {/* Hardcoded Specific Options */}
           {botMode === 'hardcoded' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="space-y-1 sm:space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700">
                   Target Sector Template
                 </label>
                 <select
                   value={sector}
                   onChange={(e) => setSector(e.target.value)}
-                  className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2 sm:p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="college">🎓 College / University / Education</option>
                   <option value="hospital">🏥 Hospital / Healthcare</option>
@@ -368,37 +420,37 @@ export default function HomePage() {
                   <option value="manufacturing">🏭 Manufacturing / Industrial</option>
                   <option value="general">🏢 General Organization</option>
                 </select>
-                <p className="text-[11px] text-slate-500">Auto-detected if left as default or automatically refined during crawl.</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500">Auto-detected if left as default or automatically refined during crawl.</p>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1 sm:space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700">
                   Dataset Version TTL (Cache Duration)
                 </label>
                 <select
                   value={ttlDays}
                   onChange={(e) => setTtlDays(Number(e.target.value))}
-                  className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2 sm:p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value={7}>7 Days (Default Standard)</option>
                   <option value={14}>14 Days</option>
                   <option value={30}>30 Days (1 Month)</option>
                   <option value={90}>90 Days (Quarterly)</option>
                 </select>
-                <p className="text-[11px] text-slate-500">Flags bot as 'Update Required' upon expiration without auto-re-crawling.</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500">Flags bot as 'Update Required' upon expiration without auto-re-crawling.</p>
               </div>
             </div>
-          ) : (
+          ) : botMode === 'ai' ? (
             /* AI RAG Specific Scope */
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-slate-900">
+              <label className="block text-xs sm:text-sm font-bold text-slate-900">
                 Crawl Scope
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setScope('entire_website')}
-                  className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                  className={`p-3 sm:p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                     scope === 'entire_website'
                       ? 'border-indigo-600 bg-indigo-50/80 text-indigo-900 ring-2 ring-indigo-500/20'
                       : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700'
@@ -408,7 +460,7 @@ export default function HomePage() {
                     Entire Website
                     {scope === 'entire_website' && <span className="w-2 h-2 rounded-full bg-indigo-600"></span>}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
+                  <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1">
                     Crawl all discovered pages across domain.
                   </div>
                 </button>
@@ -416,7 +468,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setScope('subpath')}
-                  className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                  className={`p-3 sm:p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                     scope === 'subpath'
                       ? 'border-indigo-600 bg-indigo-50/80 text-indigo-900 ring-2 ring-indigo-500/20'
                       : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700'
@@ -426,7 +478,7 @@ export default function HomePage() {
                     Specific Path
                     {scope === 'subpath' && <span className="w-2 h-2 rounded-full bg-indigo-600"></span>}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
+                  <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1">
                     Only crawl pages under URL path.
                   </div>
                 </button>
@@ -434,7 +486,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setScope('current_page')}
-                  className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                  className={`p-3 sm:p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                     scope === 'current_page'
                       ? 'border-indigo-600 bg-indigo-50/80 text-indigo-900 ring-2 ring-indigo-500/20'
                       : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700'
@@ -444,16 +496,16 @@ export default function HomePage() {
                     Single Page
                     {scope === 'current_page' && <span className="w-2 h-2 rounded-full bg-indigo-600"></span>}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
+                  <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1">
                     Process only the exact URL entered.
                   </div>
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
 
           {error && (
-            <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs sm:text-sm">
+            <div className="p-3 sm:p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs sm:text-sm">
               {error}
             </div>
           )}
@@ -461,26 +513,38 @@ export default function HomePage() {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-4 px-6 text-white font-bold text-base rounded-xl shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              botMode === 'hardcoded'
+            className={`w-full py-3.5 sm:py-4 px-4 sm:px-6 text-white font-bold text-sm sm:text-base rounded-xl shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              botMode === 'voice_search'
+                ? 'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 shadow-teal-500/20'
+                : botMode === 'web_search'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-500/20'
+                : botMode === 'hardcoded'
                 ? 'bg-gradient-to-r from-blue-600 to-amber-600 hover:from-blue-700 hover:to-amber-700 shadow-blue-500/20'
                 : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-500/20'
             }`}
           >
             {loading ? (
               <>
-                <RefreshCw className="w-5 h-5 animate-spin" />
-                {botMode === 'hardcoded' ? 'Generating Predefined FAQ Dataset...' : 'Initializing Crawl Pipeline...'}
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                <span>Initializing...</span>
               </>
             ) : (
               <>
-                {botMode === 'hardcoded' ? (
+                {botMode === 'voice_search' ? (
                   <>
-                    <Zap className="w-5 h-5" /> Generate Hardcoded Predefined Chatbot <ArrowRight className="w-5 h-5" />
+                    <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> Launch College Voice Search <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </>
+                ) : botMode === 'web_search' ? (
+                  <>
+                    <Globe className="w-4 h-4 sm:w-5 sm:h-5" /> Launch College Web Search <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </>
+                ) : botMode === 'hardcoded' ? (
+                  <>
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5" /> Generate Hardcoded Chatbot <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 ) : (
                   <>
-                    <Bot className="w-5 h-5" /> Start Crawling &amp; Build AI RAG Chatbot <ArrowRight className="w-5 h-5" />
+                    <Bot className="w-4 h-4 sm:w-5 sm:h-5" /> Build AI RAG Chatbot <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 )}
               </>
