@@ -508,11 +508,17 @@ export const api = {
   },
 
   // --- Generic Sitemap-Based Multi-College Methods ---
-  createCollegeProject: async (collegeName: string, sitemapUrl: string, maxSources: number = 3): Promise<CollegeWebSearchProject> => {
+  createCollegeProject: async (
+    collegeName: string,
+    sitemapUrl: string,
+    maxSources: number = 3,
+    instituteType: string = 'college'
+  ): Promise<CollegeWebSearchProject> => {
     const res = await axios.post(`${API_BASE}/web-search/projects`, {
       college_name: collegeName,
       sitemap_url: sitemapUrl,
-      max_sources_per_query: maxSources
+      max_sources_per_query: maxSources,
+      institute_type: instituteType
     });
     return res.data;
   },
@@ -646,6 +652,7 @@ export interface CollegeWebSearchProject {
   college_name: string;
   sitemap_url: string;
   base_domain: string;
+  institute_type?: string;
   status: 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED';
   progress_message?: string;
   total_urls: number;

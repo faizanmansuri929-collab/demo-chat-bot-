@@ -34,6 +34,29 @@ CATEGORY_PATTERNS = [
     ("About", r'/(about|about-us|history|philosophy|vision|mission|legacy|advantage|overview)')
 ]
 
+COACHING_CATEGORY_PATTERNS = [
+    ("Courses", r'/(jee|neet|foundation|course|courses|program|programs|classroom|online|batch|batches|dropper|enthusiast|leader|nurture)'),
+    ("TestSeries", r'/(test-series|cbt|mock-test|sample-papers|question-papers|test-plp|test)'),
+    ("Scholarships", r'/(tallentex|scholarship|scholarships|financial-aid|reward|discount)'),
+    ("Admissions", r'/(admission|admissions|apply|fee|fees|fee-structure|enroll|registration|refund-policy)'),
+    ("Centres", r'/(centres|centers|classroom-campuses|campuses|location|locations|branch|branches|city)'),
+    ("StudyMaterial", r'/(study-materials|notes|ncert-solutions|science|maths|biology|physics|chemistry|syllabus|cbse-notes)'),
+    ("Faculty", r'/(faculty|teachers|mentors|experts|leadership|director|management)'),
+    ("Policies", r'/(tnc|terms|policy|privacy|rules|disclaimer)'),
+    ("Contact", r'/(contact|about-us/contact|reach-us|helpline|support)'),
+    ("About", r'/(about|about-us|vision|mission|achievements|results|toppers|overview)')
+]
+
+
+def sanitize_sitemap_url(sitemap_url: str) -> str:
+    """Sanitizes sitemap URLs, stripping copied dates like '%202026-09-30', trailing spaces, or XML tags."""
+    if not sitemap_url:
+        return ""
+    s = sitemap_url.strip()
+    s = re.sub(r'[\s%20]+20\d\d-\d\d-\d\d.*$', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'\s+.*$', '', s)
+    return s.strip()
+
 
 def extract_base_domain(url: str) -> str:
     """Extracts clean base domain (e.g., 'https://www.poornima.org/sitemap.xml' -> 'poornima.org')."""
@@ -104,7 +127,7 @@ def clean_and_normalize_url(raw_url: str, base_domain: str) -> Optional[Tuple[st
         return None
 
 
-def slug_to_title_and_category(url: str) -> Tuple[str, str]:
+def slug_to_title_and_category(url: str, institute_type: str = "college") -> Tuple[str, str]:
     """Generates human-friendly page title and category from URL path."""
     parsed = urlparse(url)
     path = parsed.path.strip("/")
@@ -115,7 +138,8 @@ def slug_to_title_and_category(url: str) -> Tuple[str, str]:
     # Match Category
     category = "General"
     url_lower = url.lower()
-    for cat_name, pattern in CATEGORY_PATTERNS:
+    patterns = COACHING_CATEGORY_PATTERNS if institute_type == "coaching" else CATEGORY_PATTERNS
+    for cat_name, pattern in patterns:
         if re.search(pattern, url_lower):
             category = cat_name
             break
@@ -142,15 +166,21 @@ async def parse_sitemap_recursive(
     base_domain: str,
     client: httpx.AsyncClient,
     visited_sitemaps: Optional[Set[str]] = None,
-    depth: int = 0
+    depth: int = 0,
+    institute_type: str = "college"
 ) -> List[Dict[str, Any]]:
     """
     Recursively fetches and parses sitemap.xml, supporting sitemap indexes and child XMLs.
+    If institute_type == 'coaching', applies safety caps to prevent multi-million question bank timeouts.
+    If institute_type == 'college', executes standard college crawl logic untouched.
     """
     if visited_sitemaps is None:
         visited_sitemaps = set()
 
-    if sitemap_url in visited_sitemaps or depth > 3 or len(visited_sitemaps) > 50:
+    max_depth = 2 if institute_type == "coaching" else 3
+    max_sitemaps = 20 if institute_type == "coaching" else 50
+
+    if sitemap_url in visited_sitemaps or depth > max_depth or len(visited_sitemaps) > max_sitemaps:
         return []
 
     visited_sitemaps.add(sitemap_url)
@@ -169,18 +199,24 @@ async def parse_sitemap_recursive(
         sitemaps = soup.find_all("sitemap")
         if sitemaps:
             child_tasks = []
-            for sm in sitemaps:
+            # For coaching with huge nested indexes (e.g. 166 doubt bank sitemaps), cap to top 15
+            sitemaps_to_crawl = sitemaps[:15] if institute_type == "coaching" else sitemaps
+            for sm in sitemaps_to_crawl:
                 loc_tag = sm.find("loc")
                 if loc_tag and loc_tag.text:
                     child_url = loc_tag.text.strip()
+                    if institute_type == "coaching":
+                        child_url = sanitize_sitemap_url(child_url)
                     child_tasks.append(
-                        parse_sitemap_recursive(child_url, base_domain, client, visited_sitemaps, depth + 1)
+                        parse_sitemap_recursive(child_url, base_domain, client, visited_sitemaps, depth + 1, institute_type)
                     )
             
             import asyncio
             results = await asyncio.gather(*child_tasks)
             for res in results:
                 discovered_urls.extend(res)
+                if institute_type == "coaching" and len(discovered_urls) >= 2500:
+                    break
             return discovered_urls
 
         # 2. Parse standard URL set (<urlset>)
@@ -189,36 +225,46 @@ async def parse_sitemap_recursive(
             loc_tag = u.find("loc")
             if loc_tag and loc_tag.text:
                 raw_u = loc_tag.text.strip()
+                if institute_type == "coaching":
+                    raw_u = sanitize_sitemap_url(raw_u)
                 normalized = clean_and_normalize_url(raw_u, base_domain)
                 if normalized:
                     clean_u, src_type = normalized
-                    title, cat = slug_to_title_and_category(clean_u)
+                    title, cat = slug_to_title_and_category(clean_u, institute_type)
                     discovered_urls.append({
                         "url": clean_u,
                         "title": title,
                         "category": cat,
                         "source_type": src_type
                     })
+                    if institute_type == "coaching" and len(discovered_urls) >= 2500:
+                        break
 
         # 3. Fallback: If no <url> tags found, regex scan for <loc>
         if not urls and not sitemaps:
             loc_matches = re.findall(r'<loc>(.*?)</loc>', content, re.IGNORECASE)
             for raw_u in loc_matches:
                 raw_u = raw_u.strip()
+                if institute_type == "coaching":
+                    raw_u = sanitize_sitemap_url(raw_u)
                 if raw_u.endswith(".xml") and raw_u not in visited_sitemaps:
-                    child_res = await parse_sitemap_recursive(raw_u, base_domain, client, visited_sitemaps, depth + 1)
+                    child_res = await parse_sitemap_recursive(raw_u, base_domain, client, visited_sitemaps, depth + 1, institute_type)
                     discovered_urls.extend(child_res)
+                    if institute_type == "coaching" and len(discovered_urls) >= 2500:
+                        break
                 else:
                     normalized = clean_and_normalize_url(raw_u, base_domain)
                     if normalized:
                         clean_u, src_type = normalized
-                        title, cat = slug_to_title_and_category(clean_u)
+                        title, cat = slug_to_title_and_category(clean_u, institute_type)
                         discovered_urls.append({
                             "url": clean_u,
                             "title": title,
                             "category": cat,
                             "source_type": src_type
                         })
+                        if institute_type == "coaching" and len(discovered_urls) >= 2500:
+                            break
 
     except Exception as e:
         print(f"[SitemapParser] Error fetching {sitemap_url}: {e}")
@@ -228,18 +274,20 @@ async def parse_sitemap_recursive(
 
 async def discover_college_urls_from_sitemap(
     sitemap_url: str,
-    base_domain: Optional[str] = None
+    base_domain: Optional[str] = None,
+    institute_type: str = "college"
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """
-    Entrypoint to discover all approved URLs from a college sitemap.
+    Entrypoint to discover all approved URLs from a college or coaching sitemap.
     Returns (resolved_base_domain, list_of_unique_sources).
     """
-    domain = base_domain or extract_base_domain(sitemap_url)
+    clean_sitemap_url = sanitize_sitemap_url(sitemap_url) if institute_type == "coaching" else sitemap_url.strip()
+    domain = base_domain or extract_base_domain(clean_sitemap_url)
     if not domain:
         raise ValueError("Invalid sitemap URL: Could not extract base domain.")
 
     async with httpx.AsyncClient(timeout=15.0, verify=False, follow_redirects=True) as client:
-        raw_sources = await parse_sitemap_recursive(sitemap_url, domain, client)
+        raw_sources = await parse_sitemap_recursive(clean_sitemap_url, domain, client, institute_type=institute_type)
 
     # Deduplicate by URL
     seen_urls: Set[str] = set()
@@ -259,20 +307,23 @@ async def ingest_college_sitemap_project(
     college_name: str,
     sitemap_url: str,
     db: Session,
-    max_sources: int = 3
+    max_sources: int = 3,
+    institute_type: str = "college"
 ) -> CollegeWebSearchProjectDB:
     """
     Creates/updates a CollegeWebSearchProject and seeds all discovered URLs from the sitemap.
     """
-    domain, discovered_sources = await discover_college_urls_from_sitemap(sitemap_url)
+    clean_url = sanitize_sitemap_url(sitemap_url) if institute_type == "coaching" else sitemap_url.strip()
+    domain, discovered_sources = await discover_college_urls_from_sitemap(clean_url, institute_type=institute_type)
 
     project = db.query(CollegeWebSearchProjectDB).filter(CollegeWebSearchProjectDB.id == project_id).first()
     if not project:
         project = CollegeWebSearchProjectDB(
             id=project_id,
             college_name=college_name,
-            sitemap_url=sitemap_url,
+            sitemap_url=clean_url,
             base_domain=domain,
+            institute_type=institute_type,
             status="PROCESSING",
             progress_message="Extracting URLs from sitemap...",
             total_urls=0,
@@ -281,6 +332,9 @@ async def ingest_college_sitemap_project(
             created_at=datetime.datetime.utcnow()
         )
         db.add(project)
+        db.commit()
+    else:
+        project.institute_type = institute_type
         db.commit()
 
     # Insert sources
@@ -336,7 +390,11 @@ async def rebuild_college_project_sources(
     if not project:
         raise ValueError("Project not found.")
 
-    domain, discovered_sources = await discover_college_urls_from_sitemap(project.sitemap_url, project.base_domain)
+    domain, discovered_sources = await discover_college_urls_from_sitemap(
+        project.sitemap_url,
+        project.base_domain,
+        institute_type=getattr(project, "institute_type", "college") or "college"
+    )
     
     current_sources = db.query(CollegeWebSourceDB).filter(CollegeWebSourceDB.project_id == project_id).all()
     current_url_map = {s.url: s for s in current_sources}

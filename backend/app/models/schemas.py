@@ -823,6 +823,7 @@ class CollegeWebSearchProjectDB(Base):
     active_urls = Column(Integer, default=0)
     max_sources_per_query = Column(Integer, default=3)
     cache_ttl_seconds = Column(Integer, default=600)
+    institute_type = Column(String, default="college") # college, coaching
     system_prompt_override = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -869,6 +870,7 @@ class CollegeWebSearchCacheDB(Base):
 class CreateCollegeProjectRequest(BaseModel):
     college_name: Optional[str] = "College / University"
     sitemap_url: str
+    institute_type: Optional[str] = "college" # "college" or "coaching"
     max_sources_per_query: Optional[int] = 3
 
 class CollegeProjectResponse(BaseModel):
@@ -876,6 +878,7 @@ class CollegeProjectResponse(BaseModel):
     college_name: str
     sitemap_url: str
     base_domain: str
+    institute_type: Optional[str] = "college"
     status: str
     progress_message: Optional[str] = ""
     total_urls: int = 0

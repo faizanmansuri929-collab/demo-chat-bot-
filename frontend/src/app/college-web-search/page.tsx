@@ -45,6 +45,7 @@ function CollegeWebSearchContent() {
   const [showNewModal, setShowNewModal] = useState(false);
   const [newCollegeName, setNewCollegeName] = useState('');
   const [newSitemapUrl, setNewSitemapUrl] = useState('');
+  const [newInstituteType, setNewInstituteType] = useState<'college' | 'coaching'>('college');
   const [creatingProject, setCreatingProject] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -153,13 +154,15 @@ function CollegeWebSearchContent() {
 
     try {
       const proj = await api.createCollegeProject(
-        newCollegeName.trim() || 'College / University',
+        newCollegeName.trim() || (newInstituteType === 'coaching' ? 'Coaching Institute' : 'College / University'),
         newSitemapUrl.trim(),
-        3
+        3,
+        newInstituteType
       );
       setShowNewModal(false);
       setNewCollegeName('');
       setNewSitemapUrl('');
+      setNewInstituteType('college');
       // Reload projects list and switch
       const updatedList = await api.listCollegeProjects();
       setProjects(updatedList);
@@ -473,11 +476,60 @@ function CollegeWebSearchContent() {
             )}
 
             <form onSubmit={handleCreateProject} className="space-y-4">
+              {/* Option Selector: College / University vs Coaching / Institute */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Select Entity Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewInstituteType('college')}
+                    className={`p-3 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
+                      newInstituteType === 'college'
+                        ? 'border-emerald-500 bg-emerald-50/80 text-emerald-950 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-extrabold">
+                        <GraduationCap className="w-4 h-4 text-emerald-600" />
+                        <span>College / University</span>
+                      </div>
+                      {newInstituteType === 'college' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                    </div>
+                    <span className="text-[10px] text-slate-500 leading-tight">
+                      Standard university & college degree sitemaps (B.Tech, MBA, Hostels, REAP, Placements)
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewInstituteType('coaching')}
+                    className={`p-3 rounded-2xl border text-left transition-all flex flex-col gap-1 ${
+                      newInstituteType === 'coaching'
+                        ? 'border-teal-500 bg-teal-50/80 text-teal-950 ring-2 ring-teal-500/20'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-extrabold">
+                        <Building2 className="w-4 h-4 text-teal-600" />
+                        <span>Coaching / Institute</span>
+                      </div>
+                      {newInstituteType === 'coaching' && <Check className="w-3.5 h-3.5 text-teal-600" />}
+                    </div>
+                    <span className="text-[10px] text-slate-500 leading-tight">
+                      Allen, Aakash, Resonance & Mega Portals (JEE, NEET, CBT, Scholarships, Centres)
+                    </span>
+                  </button>
+                </div>
+              </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">College / University Name</label>
+                <label className="text-xs font-bold text-slate-700">
+                  {newInstituteType === 'coaching' ? 'Institute / Coaching Name' : 'College / University Name'}
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Poornima University, Stanford, IIT Delhi"
+                  placeholder={newInstituteType === 'coaching' ? 'e.g. Allen Career Institute, Aakash, Resonance' : 'e.g. Poornima University, Stanford, IIT Delhi'}
                   value={newCollegeName}
                   onChange={(e) => setNewCollegeName(e.target.value)}
                   className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -491,17 +543,22 @@ function CollegeWebSearchContent() {
                   <button
                     type="button"
                     onClick={() => {
-                      setNewCollegeName('Poornima University');
-                      setNewSitemapUrl('https://www.poornima.org/sitemap.xml');
+                      if (newInstituteType === 'coaching') {
+                        setNewCollegeName('Allen Career Institute');
+                        setNewSitemapUrl('https://allen.in/sitemaps/allen/1.xml');
+                      } else {
+                        setNewCollegeName('Poornima University');
+                        setNewSitemapUrl('https://www.poornima.org/sitemap.xml');
+                      }
                     }}
                     className="text-[11px] text-emerald-600 hover:underline font-semibold"
                   >
-                    Use poornima.org
+                    {newInstituteType === 'coaching' ? 'Use allen.in' : 'Use poornima.org'}
                   </button>
                 </div>
                 <input
-                  type="url"
-                  placeholder="https://examplecollege.edu/sitemap.xml"
+                  type="text"
+                  placeholder={newInstituteType === 'coaching' ? 'https://allen.in/sitemaps/allen/1.xml' : 'https://examplecollege.edu/sitemap.xml'}
                   value={newSitemapUrl}
                   onChange={(e) => setNewSitemapUrl(e.target.value)}
                   className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"

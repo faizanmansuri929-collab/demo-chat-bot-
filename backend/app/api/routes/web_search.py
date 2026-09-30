@@ -63,7 +63,8 @@ async def create_college_project(
             college_name=college_name,
             sitemap_url=sitemap_url,
             db=db,
-            max_sources=payload.max_sources_per_query or 3
+            max_sources=payload.max_sources_per_query or 3,
+            institute_type=payload.institute_type or "college"
         )
         return project
     except Exception as e:
