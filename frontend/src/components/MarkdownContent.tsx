@@ -10,8 +10,9 @@ interface MarkdownContentProps {
 }
 
 /**
- * Renders structured markdown (clean headings, normal readable text, bullet lists, tables, links)
- * without harsh or heavy bolding, stripping raw markdown artifacts cleanly.
+ * Robust, structured Markdown content renderer for admission & web search chats.
+ * Accurately parses headings, bullet lists, numbered lists, markdown tables,
+ * bold text, code tags, and links without awkward text wrapping or broken lines.
  */
 export function MarkdownContent({ content, className = '', isUser = false }: MarkdownContentProps) {
   if (!content) return null;
@@ -20,10 +21,10 @@ export function MarkdownContent({ content, className = '', isUser = false }: Mar
     return <div className={`whitespace-pre-wrap leading-relaxed ${className}`}>{content}</div>;
   }
 
-  // Pre-process: normalize custom table tags [TABLE START] ... [TABLE END] to markdown tables if present
+  // Pre-process: normalize custom table tags [TABLE START] ... [TABLE END]
   let normalized = content;
   if (normalized.includes('[TABLE START]')) {
-    normalized = normalized.replace(/\[TABLE START\]([\s\S]*?)\[TABLE END\]/g, (match, tableBody) => {
+    normalized = normalized.replace(/\[TABLE START\]([\s\S]*?)\[TABLE END\]/g, (_, tableBody) => {
       const lines = tableBody.trim().split('\n').filter((l: string) => l.trim().length > 0);
       if (lines.length === 0) return '';
       
@@ -33,7 +34,6 @@ export function MarkdownContent({ content, className = '', isUser = false }: Mar
         return '| ' + parts.join(' | ') + ' |';
       });
 
-      // Insert separator after header if needed
       if (formattedLines.length >= 1 && !formattedLines[1]?.includes('---')) {
         const colCount = formattedLines[0].split('|').length - 2;
         const sep = '| ' + Array(Math.max(colCount, 1)).fill('---').join(' | ') + ' |';
@@ -43,153 +43,169 @@ export function MarkdownContent({ content, className = '', isUser = false }: Mar
     });
   }
 
-  // Split content into blocks by double newlines, preserving table blocks
-  const rawBlocks = normalized.split(/\n{2,}/);
+  // Split content by lines for stream parsing
+  const lines = normalized.split('\n');
   const elements: React.ReactNode[] = [];
+  let i = 0;
 
-  rawBlocks.forEach((block, blockIdx) => {
-    const trimmed = block.trim();
-    if (!trimmed) return;
+  while (i < lines.length) {
+    const rawLine = lines[i];
+    const line = rawLine.trim();
 
-    // 1. Table Detection (| col1 | col2 |)
-    const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
-    const isTable = lines.length >= 2 && lines.every(l => l.startsWith('|') && l.endsWith('|'));
-    if (isTable) {
-      const headerLine = lines[0];
-      const hasSep = lines[1] && lines[1].includes('---');
-      const dataLines = hasSep ? lines.slice(2) : lines.slice(1);
-
-      const headers = headerLine.split('|').map(c => c.trim()).filter(Boolean);
-
-      elements.push(
-        <div key={`table-${blockIdx}`} className="my-3 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-100 text-slate-800 uppercase font-semibold text-[11px] border-b border-slate-200">
-              <tr>
-                {headers.map((h, hIdx) => (
-                  <th key={hIdx} className="py-2.5 px-3.5 tracking-wider">
-                    {renderInline(h)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {dataLines.map((row, rIdx) => {
-                const cells = row.split('|').map(c => c.trim()).filter(Boolean);
-                return (
-                  <tr key={rIdx} className="hover:bg-slate-50 transition-colors">
-                    {cells.map((cell, cIdx) => (
-                      <td key={cIdx} className="py-2 px-3.5 leading-relaxed">
-                        {renderInline(cell)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      );
-      return;
+    if (!line) {
+      i++;
+      continue;
     }
 
-    // 2. Heading 1 (# Heading)
-    if (trimmed.startsWith('# ')) {
+    // 1. Markdown Table Check (starts with | and contains |)
+    if (line.startsWith('|') && line.includes('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+
+      if (tableLines.length >= 1) {
+        const headerLine = tableLines[0];
+        const hasSep = tableLines.length > 1 && tableLines[1].includes('---');
+        const dataLines = hasSep ? tableLines.slice(2) : tableLines.slice(1);
+        const headers = headerLine.split('|').map(c => c.trim()).filter(Boolean);
+
+        elements.push(
+          <div key={`tbl-${i}`} className="my-2.5 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-100/80 text-[#0B2545] font-extrabold text-[11px] border-b border-slate-200">
+                <tr>
+                  {headers.map((h, hIdx) => (
+                    <th key={hIdx} className="py-2 px-3 tracking-normal font-bold">
+                      {renderInline(h)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {dataLines.map((row, rIdx) => {
+                  const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+                  return (
+                    <tr key={rIdx} className="hover:bg-slate-50/80 transition-colors">
+                      {cells.map((cell, cIdx) => (
+                        <td key={cIdx} className="py-1.5 px-3 leading-relaxed">
+                          {renderInline(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+    }
+
+    // 2. Heading 1 (# ...)
+    if (line.startsWith('# ')) {
       elements.push(
-        <h2 key={`h1-${blockIdx}`} className="text-base font-semibold text-slate-900 mt-3.5 mb-1 tracking-tight border-b border-slate-100 pb-1">
-          {renderInline(trimmed.replace(/^#\s+/, ''))}
+        <h2 key={`h1-${i}`} className="text-base sm:text-lg font-extrabold text-[#0B2545] mt-3.5 mb-1.5 tracking-tight border-b border-slate-100 pb-1">
+          {renderInline(line.replace(/^#\s+/, ''))}
         </h2>
       );
-      return;
+      i++;
+      continue;
     }
 
-    // 3. Heading 2 (## Heading)
-    if (trimmed.startsWith('## ')) {
+    // 3. Heading 2 (## ...)
+    if (line.startsWith('## ')) {
       elements.push(
-        <h3 key={`h2-${blockIdx}`} className="text-sm sm:text-base font-semibold text-slate-900 mt-3 mb-1 tracking-tight">
-          {renderInline(trimmed.replace(/^##\s+/, ''))}
+        <h3 key={`h2-${i}`} className="text-sm sm:text-base font-extrabold text-[#0B2545] mt-3 mb-1 tracking-tight">
+          {renderInline(line.replace(/^##\s+/, ''))}
         </h3>
       );
-      return;
+      i++;
+      continue;
     }
 
-    // 4. Heading 3 (### Heading)
-    if (trimmed.startsWith('### ')) {
+    // 4. Heading 3 (### ...)
+    if (line.startsWith('### ')) {
       elements.push(
-        <h4 key={`h3-${blockIdx}`} className="text-xs sm:text-sm font-semibold text-emerald-800 mt-2.5 mb-1 uppercase tracking-wider flex items-center gap-1.5">
-          <span className="w-1.5 h-3 rounded-full bg-emerald-600 inline-block"></span>
-          {renderInline(trimmed.replace(/^###\s+/, ''))}
+        <h4 key={`h3-${i}`} className="text-xs sm:text-[13.5px] font-extrabold text-[#0B2545] mt-2.5 mb-1 uppercase tracking-wide flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#F2B54A]" />
+          {renderInline(line.replace(/^###\s+/, ''))}
         </h4>
       );
-      return;
+      i++;
+      continue;
     }
 
-    // 5. Bullet Lists (- item, * item, • item)
-    const isBulletList = lines.every(l => /^[-*•]\s+/.test(l));
-    if (isBulletList) {
+    // 5. Bullet List Item (- ... or * ... or • ...)
+    if (/^[-*•]\s+/.test(line)) {
+      const listItems: string[] = [];
+      while (i < lines.length && /^[-*•]\s+/.test(lines[i].trim())) {
+        listItems.push(lines[i].trim().replace(/^[-*•]\s+/, ''));
+        i++;
+      }
+
       elements.push(
-        <ul key={`ul-${blockIdx}`} className="my-2 space-y-1.5 pl-1">
-          {lines.map((item, iIdx) => {
-            const cleanItem = item.replace(/^[-*•]\s+/, '');
-            return (
-              <li key={iIdx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2 shrink-0"></span>
-                <span className="flex-1">{renderInline(cleanItem)}</span>
-              </li>
-            );
-          })}
+        <ul key={`ul-${i}`} className="my-2 space-y-1.5 pl-0.5">
+          {listItems.map((item, lIdx) => (
+            <li key={lIdx} className="flex items-start gap-2.5 text-[14px] sm:text-[14.5px] text-slate-800 leading-relaxed">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0B2545] mt-2 shrink-0 opacity-80" />
+              <span className="flex-1">{renderInline(item)}</span>
+            </li>
+          ))}
         </ul>
       );
-      return;
+      continue;
     }
 
-    // 6. Numbered Lists (1. item, 2. item)
-    const isNumberedList = lines.every(l => /^\d+\.\s+/.test(l));
-    if (isNumberedList) {
+    // 6. Numbered List Item (1. ... 2. ...)
+    if (/^\d+\.\s+/.test(line)) {
+      const numItems: { num: string; text: string }[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+        const itemLine = lines[i].trim();
+        const match = itemLine.match(/^(\d+)\.\s+(.*)$/);
+        numItems.push({
+          num: match ? match[1] : `${numItems.length + 1}`,
+          text: match ? match[2] : itemLine
+        });
+        i++;
+      }
+
       elements.push(
-        <ol key={`ol-${blockIdx}`} className="my-2 space-y-1.5 pl-1">
-          {lines.map((item, iIdx) => {
-            const numMatch = item.match(/^(\d+)\.\s+(.*)$/);
-            const num = numMatch ? numMatch[1] : `${iIdx + 1}`;
-            const cleanItem = numMatch ? numMatch[2] : item;
-            return (
-              <li key={iIdx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
-                <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-medium flex items-center justify-center shrink-0 mt-0.5">
-                  {num}
-                </span>
-                <span className="flex-1">{renderInline(cleanItem)}</span>
-              </li>
-            );
-          })}
+        <ol key={`ol-${i}`} className="my-2 space-y-1.5 pl-0.5">
+          {numItems.map((item, nIdx) => (
+            <li key={nIdx} className="flex items-start gap-2.5 text-[14px] sm:text-[14.5px] text-slate-800 leading-relaxed">
+              <span className="w-4 h-4 rounded-full bg-[#F4F6F9] text-[#0B2545] border border-[#D5DCE6] text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                {item.num}
+              </span>
+              <span className="flex-1">{renderInline(item.text)}</span>
+            </li>
+          ))}
         </ol>
       );
-      return;
+      continue;
     }
 
-    // 7. Standard Paragraph
+    // 7. Regular Paragraph Text
     elements.push(
-      <p key={`p-${blockIdx}`} className="text-xs sm:text-sm text-slate-700 leading-relaxed my-1">
-        {renderInline(trimmed)}
+      <p key={`p-${i}`} className="text-[14.5px] sm:text-[15px] text-slate-800 leading-[1.65] my-1.5">
+        {renderInline(line)}
       </p>
     );
-  });
+    i++;
+  }
 
-  return <div className={`space-y-1 ${className}`}>{elements}</div>;
+  return <div className={`space-y-2 text-[14.5px] sm:text-[15px] ${className}`}>{elements}</div>;
 }
 
 /**
- * Parses inline formatting: [links](url), `code`, and strips harsh asterisks (**) to normal readable text
+ * Parses inline formatting: [links](url), `code`, **bold**, *italic*
  */
 function renderInline(text: string): React.ReactNode {
   if (!text) return text;
 
-  // Regex to match:
-  // 1. Links: [label](url)
-  // 2. Bold: **bold** or __bold__
-  // 3. Italic: *italic* or _italic_
-  // 4. Code: `code`
-  // 5. Line break: \n
-  const regex = /(\[.*?\]\(https?:\/\/.*?\)|\*\*.*?\*\*|__.*?__|`.*?`|\*.*?\*|_.*?_|\n)/g;
+  const regex = /(\[.*?\]\(https?:\/\/.*?\)|\*\*.*?\*\*|__.*?__|`.*?`|\*.*?\*|_.*?_)/g;
   const parts = text.split(regex);
 
   return parts.map((part, index) => {
@@ -206,21 +222,21 @@ function renderInline(text: string): React.ReactNode {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-emerald-700 hover:text-emerald-900 underline decoration-emerald-400 underline-offset-2 transition-colors inline-flex items-center gap-0.5"
+          className="text-[#0B2545] font-bold hover:text-[#153866] underline decoration-[#F2B54A] underline-offset-2 transition-colors inline-flex items-center gap-0.5"
         >
           {label}
-          <ExternalLink className="w-3 h-3 inline ml-0.5 shrink-0 opacity-70" />
+          <ExternalLink className="w-2.5 h-2.5 inline ml-0.5 shrink-0 opacity-70" />
         </a>
       );
     }
 
-    // Bold: **text** -> Render clean normal/medium text without harsh bolding
+    // Bold: **text**
     if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
       const inner = part.slice(2, -2);
       return (
-        <span key={index} className="font-medium text-slate-900">
+        <strong key={index} className="font-extrabold text-[#1B2433]">
           {renderInline(inner)}
-        </span>
+        </strong>
       );
     }
 
@@ -228,25 +244,20 @@ function renderInline(text: string): React.ReactNode {
     if (part.startsWith('`') && part.endsWith('`')) {
       const inner = part.slice(1, -1);
       return (
-        <code key={index} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 font-mono text-[11px] border border-slate-200">
+        <code key={index} className="px-1.5 py-0.5 rounded bg-slate-100 text-[#0B2545] font-mono text-[11px] border border-slate-200">
           {inner}
         </code>
       );
     }
 
-    // Italic: *text* -> Render clean normal text
+    // Italic: *text*
     if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
       const inner = part.slice(1, -1);
       return (
-        <span key={index} className="text-slate-700">
+        <span key={index} className="text-slate-600 italic">
           {renderInline(inner)}
         </span>
       );
-    }
-
-    // Line break: \n
-    if (part === '\n') {
-      return <br key={index} />;
     }
 
     return part;

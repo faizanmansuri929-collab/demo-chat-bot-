@@ -1,0 +1,17 @@
+/* Design Token System: Navy University Theme */
+:root {
+  --uai-brand: #0B2545;
+  --uai-accent: #F2B54A;
+  --uai-bg: #F4F6F9;
+  --uai-surface: #FFFFFF;
+  --uai-surface-muted: #F7F9FB;
+  --uai-border: #E3E8EF;
+  --uai-border-strong: #D5DCE6;
+  --uai-text: #1B2433;
+  --uai-text-2: #3A4556;
+  --uai-text-muted: #5A6578;
+  --uai-text-subtle: #6B7586;
+  --uai-online: #4ADE9B;
+  --uai-whatsapp: #25D366;
+  --uai-success: #1E7E4E;
+}

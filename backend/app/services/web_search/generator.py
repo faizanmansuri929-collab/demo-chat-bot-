@@ -20,16 +20,17 @@ def build_dynamic_college_prompt(college_name: str, base_domain: str, override_p
 
     return f"""You are the official AI web search assistant for {college_name} (official website: {base_domain}).
 
-You answer user inquiries accurately using the live official {college_name} website pages and tables provided in the context.
+You answer user inquiries accurately using ONLY the live official {college_name} website pages and tables provided in the context.
 
-CRITICAL INSTRUCTIONS:
-1. Thoroughly inspect all provided website context, including [TABLE START] ... [TABLE END] matrices, fee structures, tuition fees, semester breakdowns, caution money, registration fees, quota percentages, and helpline contact info.
-2. If the user asks about fees, provide a clear semester-wise and category-wise fee breakdown (e.g. Tuition Fee, Development Fee, Caution Money, Total Amount, TFWS fees) exactly as shown in the tables.
-3. If the user asks about admissions or courses, list the branches, eligibility criteria, and important dates from the context.
-4. Structure your response with clean headings, simple bullet points, and tables. Avoid wrapping words in asterisks (**) unnecessarily; write clean, readable plain text.
-5. If the user asks about an unrelated non-college entity (e.g. other companies, celebrity gossip, general internet search), politely decline.
-6. Only if the queried topic is genuinely and completely absent from all provided pages, state that the specific detail was not found on the visited pages and provide the official contact number found in the context.
-7. Be direct, authoritative, clean, and helpful."""
+CRITICAL DOMAIN RULES:
+1. STRICT DOMAIN GROUNDING: You MUST base all answers solely on the provided official {base_domain} pages and tables. Never guess or hallucinate unverified numbers or criteria.
+2. Thoroughly inspect all provided website context, including [TABLE START] ... [TABLE END] matrices, fee structures, tuition fees, semester breakdowns, caution money, registration fees, quota percentages, and helpline contact info.
+3. If the user asks about fees, provide a clear semester-wise and category-wise fee breakdown (e.g. Tuition Fee, Development Fee, Caution Money, Total Amount, TFWS fees) exactly as shown in the tables.
+4. If the user asks about admissions or courses, list the branches, eligibility criteria, and important dates from the context.
+5. Structure your response with clean headings, simple bullet points, and tables. Avoid wrapping words in asterisks (**) unnecessarily; write clean, readable plain text.
+6. OFF-DOMAIN INQUIRIES: If the user asks about an unrelated entity (e.g. other companies, general knowledge, other colleges), politely decline and state that you can only provide verified data from official {base_domain}.
+7. ABSENT INFORMATION: If the queried topic is genuinely and completely absent from the provided official domain pages, explicitly state that this specific detail is not available on {base_domain} and provide the official contact number found in the context.
+8. Be direct, authoritative, clean, and helpful."""
 
 
 async def generate_college_web_search_answer(
@@ -37,7 +38,8 @@ async def generate_college_web_search_answer(
     user_message: str,
     history: Optional[List[ChatMessage]] = None,
     include_debug: bool = True,
-    db: Optional[Session] = None
+    db: Optional[Session] = None,
+    system_prompt_override: Optional[str] = None
 ) -> CollegeChatResponse:
     """
     Generic Multi-College Live Web Search Execution Pipeline:
@@ -133,16 +135,23 @@ async def generate_college_web_search_answer(
 
     # Handle Greeting
     if intent_info.get("is_greeting"):
-        answer = (
-            f"👋 **Hello! Welcome to {college_name} Live Web Assistant.**\n\n"
-            f"I am dynamically connected to the official website (`{base_domain}`) with live sitemap search enabled. You can ask me about:\n"
-            f"- 🎓 **Courses & Academic Programs**\n"
-            f"- 🏛️ **Admission Procedure & Eligibility**\n"
-            f"- 💰 **Fee Structure & Scholarships**\n"
-            f"- 💼 **Campus Placements, Highest Packages & Recruiters**\n"
-            f"- 🛏️ **Hostels, Mess & Campus Facilities**\n\n"
-            f"What would you like to know about {college_name}?"
-        )
+        if system_prompt_override:
+            answer = (
+                f"👋 **Hello! Welcome to {college_name} Admissions (2026-27).**\n\n"
+                f"Which course or programme are you interested in (e.g., B.Tech CSE, MBA, BCA, B.Des, MCA)?\n\n"
+                f"💡 *Tip: Feel free to share your **Name** and **Mobile Number** so I can send the official 2026 fee structure, scholarship calculator, and brochure directly to your WhatsApp!*"
+            )
+        else:
+            answer = (
+                f"👋 **Hello! Welcome to {college_name} Live Web Assistant.**\n\n"
+                f"I am dynamically connected to the official website (`{base_domain}`) with live sitemap search enabled. You can ask me about:\n"
+                f"- 🎓 **Courses & Academic Programs**\n"
+                f"- 🏛️ **Admission Procedure & Eligibility**\n"
+                f"- 💰 **Fee Structure & Scholarships**\n"
+                f"- 💼 **Campus Placements, Highest Packages & Recruiters**\n"
+                f"- 🛏️ **Hostels, Mess & Campus Facilities**\n\n"
+                f"What would you like to know about {college_name}?"
+            )
         citations = []
         if selected_sources:
             citations = [
@@ -202,18 +211,31 @@ async def generate_college_web_search_answer(
 
     context_str = "\n\n====================\n\n".join(context_blocks)
 
+    history_context = ""
+    if history:
+        history_lines = []
+        for h in history[-8:]:
+            role_label = "Student" if h.role == "user" else "Admission Assistant"
+            history_lines.append(f"{role_label}: {h.content}")
+        history_context = "PREVIOUS CONVERSATION HISTORY:\n" + "\n".join(history_lines) + "\n\n"
+
     prompt = f"""LIVE SEARCHED {college_name.upper()} OFFICIAL WEBSITE CONTEXT ({base_domain}):
 {context_str}
 
-USER QUESTION:
-{user_message}"""
+{history_context}CURRENT USER MESSAGE:
+{user_message}
+
+CRITICAL INSTRUCTION:
+Answer the current user message accurately (2-4 sentences) using the official website context.
+DO NOT repeat questions for information (e.g. 12th marks, branch, phone number) that the student has already provided in previous turns!"""
 
     # 4. Generate Answer via LLM Provider
     llm_provider = get_llm_provider()
+    effective_override = system_prompt_override or (project.system_prompt_override if project else None)
     system_prompt = build_dynamic_college_prompt(
         college_name=college_name,
         base_domain=base_domain,
-        override_prompt=project.system_prompt_override if project else None
+        override_prompt=effective_override
     )
 
     answer = await llm_provider.generate_response(prompt=prompt, system_instruction=system_prompt)

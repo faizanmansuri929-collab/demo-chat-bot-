@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bot, Sparkles, Globe, GraduationCap, ShoppingBag, Mic, Menu, X } from 'lucide-react';
+import { Bot, Sparkles, Globe, GraduationCap, ShoppingBag, Mic, Menu, X, Users } from 'lucide-react';
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -28,6 +28,15 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-2.5 lg:gap-3">
+          <Link
+            href="/lead-engine"
+            className="text-xs lg:text-sm font-extrabold text-slate-900 bg-slate-100 hover:bg-slate-200/90 px-3 py-1.5 rounded-xl border border-slate-300 flex items-center gap-1.5 transition-all shadow-xs"
+          >
+            <Users className="w-3.5 h-3.5 text-teal-700" />
+            <span>Lead Engine</span>
+            <span className="px-1.5 py-0.2 rounded bg-teal-600 text-white text-[10px] font-black">NEW</span>
+          </Link>
+
           <Link
             href="/college-voice-search"
             className="text-xs lg:text-sm font-extrabold text-teal-800 bg-teal-50 hover:bg-teal-100/90 px-3 py-1.5 rounded-xl border border-teal-300 flex items-center gap-1.5 transition-all shadow-xs"
@@ -94,6 +103,18 @@ export default function Navbar() {
       {/* Mobile Dropdown Drawer */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200/90 bg-white/98 backdrop-blur-lg px-4 py-3 space-y-2 animate-in slide-in-from-top-2 duration-150 shadow-xl">
+          <Link
+            href="/lead-engine"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-100 text-slate-900 font-extrabold text-xs border border-slate-300"
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-teal-700" />
+              <span>Lead Engine CRM</span>
+            </div>
+            <span className="px-1.5 py-0.5 rounded bg-teal-600 text-white text-[10px] font-black">NEW</span>
+          </Link>
+
           <Link
             href="/college-voice-search"
             onClick={() => setIsMobileMenuOpen(false)}

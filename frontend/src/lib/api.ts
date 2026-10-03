@@ -593,11 +593,21 @@ export const api = {
   },
 
   // --- College Voice Web Search API Methods ---
-  createVoiceSession: async (projectId: string = 'proj_poornima', voice: string = 'alloy', language: string = 'en-IN'): Promise<VoiceSessionResponse> => {
+  createVoiceSession: async (
+    projectId: string = 'proj_poornima',
+    voice: string = 'verse',
+    language: string = 'en-IN',
+    mode: string = 'hands_free',
+    vadThreshold: number = 0.5,
+    silenceMs: number = 650
+  ): Promise<VoiceSessionResponse> => {
     const res = await axios.post(`${API_BASE}/college-voice/session`, {
       project_id: projectId,
       voice,
-      language
+      language,
+      mode,
+      vad_threshold: vadThreshold,
+      silence_duration_ms: silenceMs
     });
     return res.data;
   },
@@ -608,6 +618,41 @@ export const api = {
       query,
       max_sources: maxSources,
       language
+    });
+    return res.data;
+  },
+
+  // --- Lead Engine CRM Methods ---
+  captureLead: async (data: {
+    name: string;
+    phone: string;
+    course?: string;
+    email?: string;
+    city?: string;
+    state?: string;
+    academic?: string;
+    chat_summary?: string;
+    project_id?: string;
+    source?: string;
+  }) => {
+    const res = await axios.post(`${API_BASE}/lead-engine/capture`, data);
+    return res.data;
+  },
+
+  getLeadEngineLeads: async (projectId: string = 'proj_poornima') => {
+    const res = await axios.get(`${API_BASE}/lead-engine/leads?project_id=${projectId}`);
+    return res.data;
+  },
+
+  chatLeadEngine: async (
+    projectId: string = 'proj_poornima',
+    message: string,
+    history: { role: string; content: string }[] = []
+  ): Promise<CollegeChatResponse> => {
+    const res = await axios.post(`${API_BASE}/lead-engine/chat`, {
+      project_id: projectId,
+      message,
+      history
     });
     return res.data;
   }

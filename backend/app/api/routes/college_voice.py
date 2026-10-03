@@ -24,8 +24,11 @@ def get_db():
 
 class CreateVoiceSessionRequest(BaseModel):
     project_id: Optional[str] = "proj_poornima"
-    voice: Optional[str] = "alloy" # alloy, ash, ballad, coral, echo, sage, shimmer, verse
+    voice: Optional[str] = "verse" # alloy, ash, ballad, coral, echo, sage, shimmer, verse
     language: Optional[str] = "en-IN" # en-IN, hi
+    vad_threshold: Optional[float] = 0.85
+    silence_duration_ms: Optional[int] = 450
+    mode: Optional[str] = "hands_free" # hands_free, push_to_talk
 
 
 class VoiceSessionResponse(BaseModel):
@@ -83,16 +86,21 @@ LANGUAGE & ACCENT (INDIAN ENGLISH):
 
     return f"""You are the official Indian Voice Assistant for {college_name} (official website: {base_domain}).
 
-CRITICAL MANDATORY INSTRUCTIONS:
-1. TOOL CALLING IS STRICTLY MANDATORY:
-   Whenever the user asks ANY question about {college_name} (including fees, tuition cost, fee structure, scholarships, courses, B.Tech, M.Tech, MBA, branches, admissions, eligibility, cutoffs, placements, highest package, hostels, mess, campus facilities, faculty, contacts), you MUST IMMEDIATELY call the `college_web_search` function tool with the user's query.
-2. DO NOT ANSWER FROM MEMORY AND NEVER GIVE GENERIC FILLER (e.g., "I understand, ask me anything"). ALWAYS call `college_web_search`.
-3. CONCISE SPOKEN SUMMARY (CRITICAL FOR AUDIO):
+CRITICAL MANDATORY DOMAIN-CHECK RULES:
+1. STRICT DOMAIN LOCK (ZERO UNVERIFIED RESPONSES):
+   You are strictly restricted to {college_name} ({base_domain}). You are PROHIBITED from answering any question from general world knowledge without first reading the official domain.
+2. MANDATORY TOOL CALLING BEFORE EVERY RESPONSE:
+   Whenever the user asks ANY question (fees, courses, admissions, eligibility, placements, hostels, faculty, cutoffs, campus), you MUST IMMEDIATELY execute the `college_web_search` tool to read and verify live pages from {base_domain}.
+3. NO OFF-DOMAIN ANSWERS:
+   If the user asks about an unrelated entity, external topic, or general questions not related to {college_name}, you MUST politely refuse:
+   "I can only provide verified information from the official {college_name} website ({base_domain}). Please ask a question about {college_name}."
+4. ABSENCE OF INFORMATION:
+   If the official {base_domain} search does not contain the requested detail, explicitly state that this information is not found on the official {base_domain} website. Do NOT make up numbers or guess.
+5. CONCISE SPOKEN SUMMARY (FOR AUDIO STREAM):
    - When the tool returns data, speak a short 1 to 2 sentence polite conversational summary aloud (10 to 35 words).
    - Inform the user that full detailed breakdown tables, branch lists, and verified official links are displayed on their screen.
    - Example: "B.Tech tuition fee is approximately 1.21 Lakhs per year. I have displayed the complete detailed fee breakdown table and official links on your screen!"
-4. NEVER read long tables, fee rows, or raw URLs aloud. Keep speech crisp and natural.
-5. User speech is in English or Hinglish (Hindi in Roman script). Never output or transcribe into unrelated languages or strange scripts.
+6. User speech is in English or Hinglish (Hindi in Roman script). Never output or transcribe into unrelated languages or strange scripts.
 {lang_instruction}
 """
 
@@ -134,6 +142,17 @@ async def create_voice_realtime_session(
     # For both English and Hinglish, using 'en' transcription forces Whisper to output Roman/Latin alphabet characters (Hinglish)
     whisper_lang = "en"
 
+    vad_threshold = payload.vad_threshold if (payload.vad_threshold is not None and payload.vad_threshold < 0.8) else 0.5
+    silence_ms = payload.silence_duration_ms if (payload.silence_duration_ms is not None and payload.silence_duration_ms >= 500) else 650
+    turn_detection_config = None if payload.mode == "push_to_talk" else {
+        "type": "server_vad",
+        "threshold": vad_threshold,
+        "prefix_padding_ms": 300,
+        "silence_duration_ms": silence_ms,
+        "create_response": True,
+        "interrupt_response": False
+    }
+
     session_payload = {
         "session": {
             "type": "realtime",
@@ -147,17 +166,7 @@ async def create_voice_realtime_session(
                         "language": whisper_lang,
                         "prompt": f"{college_name}, Poornima University, B.Tech, CSE, Computer Engineering, Artificial Intelligence, AI, Data Science, Mechanical, Civil, Electrical, MBA, BCA, MCA, hostel fees, mess, tuition fee structure, admission eligibility, REAP, cutoffs, placements, highest package, Jaipur, Rajasthan, Hinglish."
                     },
-                    "noise_reduction": {
-                        "type": "near_field"
-                    },
-                    "turn_detection": {
-                        "type": "server_vad",
-                        "threshold": 0.75,
-                        "prefix_padding_ms": 300,
-                        "silence_duration_ms": 800,
-                        "create_response": True,
-                        "interrupt_response": False
-                    }
+                    "turn_detection": turn_detection_config
                 },
                 "output": {
                     "voice": selected_voice,

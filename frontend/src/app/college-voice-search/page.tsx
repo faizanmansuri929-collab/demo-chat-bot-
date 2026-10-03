@@ -41,6 +41,9 @@ function CollegeVoiceSearchContent() {
   // Language & Voice State
   const [language, setLanguage] = useState<'en-IN' | 'hi'>('en-IN');
   const [selectedVoice, setSelectedVoice] = useState('verse'); // Verse/Alloy with Indian prompt
+  const [voiceMode, setVoiceMode] = useState<'hands_free' | 'push_to_talk'>('hands_free');
+  const [isPushTalking, setIsPushTalking] = useState(false);
+  const isPushTalkingRef = useRef(false);
 
   // Realtime Voice Session State
   const [voiceState, setVoiceState] = useState<VoiceState>('disconnected');
@@ -64,6 +67,38 @@ function CollegeVoiceSearchContent() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, currentAssistantText, statusDetail]);
+
+  // Push-to-Talk Spacebar support
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && voiceMode === 'push_to_talk' && voiceState !== 'disconnected' && voiceState !== 'error' && voiceState !== 'connecting') {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+          return;
+        }
+        e.preventDefault();
+        handlePushTalkStart();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && voiceMode === 'push_to_talk') {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+          return;
+        }
+        e.preventDefault();
+        handlePushTalkEnd();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [voiceMode, voiceState]);
 
   // Load college projects on mount
   useEffect(() => {
@@ -113,12 +148,63 @@ function CollegeVoiceSearchContent() {
       localStreamRef.current = null;
     }
     processedCallIdsRef.current.clear();
+    setIsPushTalking(false);
+    isPushTalkingRef.current = false;
     setVoiceState('disconnected');
     setStatusDetail(
       language === 'hi'
         ? 'वॉयस सेशन समाप्त हुआ। दोबारा बात करने के लिए स्टार्ट पर क्लिक करें।'
         : 'Voice session ended. Click Start Voice Search to speak again.'
     );
+  };
+
+  const handlePushTalkStart = (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault();
+    if (voiceMode !== 'push_to_talk' || voiceState === 'disconnected' || voiceState === 'connecting' || voiceState === 'error') return;
+    if (isPushTalkingRef.current) return;
+
+    isPushTalkingRef.current = true;
+    setIsPushTalking(true);
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = true;
+      });
+    }
+    setVoiceState('listening');
+    setStatusDetail(
+      language === 'hi' ? '🎙️ बोलिए... सवाल खत्म होने पर बटन छोड़ें' : '🎙️ Recording... Release button when you finish speaking'
+    );
+  };
+
+  const handlePushTalkEnd = (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault();
+    if (voiceMode !== 'push_to_talk') return;
+    if (!isPushTalkingRef.current) return;
+
+    isPushTalkingRef.current = false;
+    setIsPushTalking(false);
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = false;
+      });
+    }
+
+    setVoiceState('searching');
+    setStatusDetail(
+      language === 'hi' ? '⏳ आवाज़ प्रोसेस की जा रही है...' : '⏳ Processing speech & searching...'
+    );
+
+    // Commit buffer and request model response
+    if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+      try {
+        dataChannelRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+        dataChannelRef.current.send(JSON.stringify({ type: 'response.create' }));
+      } catch (err) {
+        console.error('Failed to commit push-to-talk buffer:', err);
+      }
+    }
   };
 
   const handleStartVoice = async () => {
@@ -137,19 +223,24 @@ function CollegeVoiceSearchContent() {
     );
 
     try {
-      // 1. Get user media (microphone access)
+      // 1. Get user media (microphone access) with clean audio processing
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {
-            echoCancellation: { ideal: true },
-            noiseSuppression: { ideal: true },
-            autoGainControl: { ideal: true },
-            sampleRate: { ideal: 24000 },
-            channelCount: { ideal: 1 }
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
           }
         });
         localStreamRef.current = stream;
+
+        // In Push-to-Talk mode, mute mic track immediately until user holds button
+        if (voiceMode === 'push_to_talk') {
+          stream.getAudioTracks().forEach(track => {
+            track.enabled = false;
+          });
+        }
       } catch (micErr: any) {
         setVoiceState('error');
         setErrorMessage(
@@ -161,8 +252,15 @@ function CollegeVoiceSearchContent() {
         return;
       }
 
-      // 2. Obtain short-lived ephemeral session token from backend
-      const sessionData = await api.createVoiceSession(activeProjectId, selectedVoice, language);
+      // 2. Obtain short-lived ephemeral session token from backend with calibrated VAD / Mode params
+      const sessionData = await api.createVoiceSession(
+        activeProjectId,
+        selectedVoice,
+        language,
+        voiceMode,
+        0.5,
+        650
+      );
       const ephemeralKey = sessionData.client_secret?.value;
 
       if (!ephemeralKey) {
@@ -193,11 +291,19 @@ function CollegeVoiceSearchContent() {
 
       dc.onopen = () => {
         setVoiceState('listening');
-        setStatusDetail(
-          language === 'hi'
-            ? `${activeProject?.college_name || 'कॉलेज'} वॉइस असिस्टेंट तैयार है। अपना सवाल पूछें!`
-            : `Connected to ${activeProject?.college_name || 'College'} Voice Agent. Speak your question in Indian English or Hindi!`
-        );
+        if (voiceMode === 'push_to_talk') {
+          setStatusDetail(
+            language === 'hi'
+              ? `पुश-टू-टॉक सक्रिय! ${activeProject?.college_name || 'कॉलेज'} से बात करने के लिए नीचे बटन दबाकर रखें (या Space दबाएं)।`
+              : `Push-to-Talk active! Hold the button below (or Spacebar) to speak to ${activeProject?.college_name || 'the college'}.`
+          );
+        } else {
+          setStatusDetail(
+            language === 'hi'
+              ? `${activeProject?.college_name || 'कॉलेज'} वॉइस असिस्टेंट तैयार है। अपना सवाल पूछें!`
+              : `Connected to ${activeProject?.college_name || 'College'} Voice Agent. Speak your question in Indian English or Hindi!`
+          );
+        }
       };
 
       dc.onclose = () => {
@@ -247,11 +353,19 @@ function CollegeVoiceSearchContent() {
 
       // Connection established
       setVoiceState('listening');
-      setStatusDetail(
-        language === 'hi'
-          ? `कनेक्टेड! ${activeProject?.college_name || 'कॉलेज'} के बारे में अपना सवाल बोलें...`
-          : `Connected! Listening for your question about ${activeProject?.college_name || 'the college'}...`
-      );
+      if (voiceMode === 'push_to_talk') {
+        setStatusDetail(
+          language === 'hi'
+            ? `कनेक्टेड! बोलने के लिए होल्ड करें (या Space दबाएं)...`
+            : `Connected! Hold button or press Space to speak...`
+        );
+      } else {
+        setStatusDetail(
+          language === 'hi'
+            ? `कनेक्टेड! ${activeProject?.college_name || 'कॉलेज'} के बारे में अपना सवाल बोलें...`
+            : `Connected! Listening for your question about ${activeProject?.college_name || 'the college'}...`
+        );
+      }
 
     } catch (err: any) {
       console.error('Failed to start voice session:', err);
@@ -284,11 +398,9 @@ function CollegeVoiceSearchContent() {
         break;
 
       case 'input_audio_buffer.speech_stopped':
-        // Temporarily pause mic transmission while processing to prevent noise interruption
-        setMicrophoneMuted(true);
         setVoiceState('searching');
         setStatusDetail(
-          language === 'hi' ? '⏳ सवाल समझा जा रहा है... (माइक रुका हुआ है)' : '⏳ Processing speech... (Mic paused)'
+          language === 'hi' ? '⏳ सवाल समझा जा रहा है...' : '⏳ Processing speech...'
         );
         break;
 
@@ -298,8 +410,6 @@ function CollegeVoiceSearchContent() {
           const rawText = event.transcript.trim();
           const userText = rawText.replace(/[\uFFFD\u0000-\u001F]/g, '').trim();
           if (userText) {
-            // Ensure mic stays muted while executing search
-            setMicrophoneMuted(true);
             setMessages(prev => {
               // Avoid duplicate user message if already added
               if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].content === userText) {
@@ -472,16 +582,28 @@ function CollegeVoiceSearchContent() {
 
       case 'response.audio.done':
       case 'response.done':
-        // Re-enable microphone ONLY after full answer and audio are completely finished
-        if (!isMuted) {
-          setMicrophoneMuted(false);
-        }
         setVoiceState('listening');
-        setStatusDetail(
-          language === 'hi'
-            ? `🎙 सुन रहे हैं... ${activeProject?.college_name || 'कॉलेज'} के बारे में अगला सवाल पूछें।`
-            : `🎙 Listening... Ask your next question about ${activeProject?.college_name || 'the college'}.`
-        );
+        if (voiceMode === 'push_to_talk') {
+          // Keep mic muted in push to talk until button is held
+          setMicrophoneMuted(true);
+          setIsPushTalking(false);
+          isPushTalkingRef.current = false;
+          setStatusDetail(
+            language === 'hi'
+              ? `🎙️ अगला सवाल पूछने के लिए बटन दबाकर रखें (या Space दबाएं)...`
+              : `🎙️ Hold button or press Space to ask your next question...`
+          );
+        } else {
+          // Re-enable microphone ONLY after full answer and audio are completely finished
+          if (!isMuted) {
+            setMicrophoneMuted(false);
+          }
+          setStatusDetail(
+            language === 'hi'
+              ? `🎙 सुन रहे हैं... ${activeProject?.college_name || 'कॉलेज'} के बारे में अगला सवाल पूछें।`
+              : `🎙 Listening... Ask your next question about ${activeProject?.college_name || 'the college'}.`
+          );
+        }
         // If there is any leftover currentAssistantText that wasn't committed
         if (currentAssistantText && currentAssistantText.trim()) {
           const txt = currentAssistantText.trim();
@@ -737,17 +859,74 @@ function CollegeVoiceSearchContent() {
           </div>
         </div>
 
+        {/* DUAL MODE SELECTOR BAR (Hands-Free vs Push-to-Talk) */}
+        <div className="bg-slate-900 px-4 py-2.5 sm:px-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-400" /> Voice Mode:
+            </span>
+            <div className="inline-flex rounded-xl bg-slate-800/90 p-1 border border-teal-500/20 shadow-inner">
+              <button
+                type="button"
+                onClick={() => {
+                  if (voiceState !== 'disconnected') handleEndSession();
+                  setVoiceMode('hands_free');
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  voiceMode === 'hands_free'
+                    ? 'bg-teal-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>⚡ Hands-Free Auto</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (voiceState !== 'disconnected') handleEndSession();
+                  setVoiceMode('push_to_talk');
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  voiceMode === 'push_to_talk'
+                    ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5" />
+                <span>🎙️ Push-to-Talk (Hold)</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-slate-400 hidden sm:flex items-center gap-2">
+            {voiceMode === 'hands_free' ? (
+              <span className="flex items-center gap-1.5 text-teal-300">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                Calibrated VAD (0.85 Threshold &bull; 450ms Silence Gate)
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-amber-300 font-medium">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                100% Zero Background Voice &bull; Hold button or [Spacebar] to speak
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* VOICE CONTROL ISLAND (Single Unified Window Top Section) */}
         <div className="p-4 sm:p-7 bg-gradient-to-b from-slate-50/80 to-white flex flex-col items-center text-center relative overflow-hidden space-y-4 sm:space-y-5">
           {/* Ambient Wave FX when active */}
-          {(voiceState === 'listening' || voiceState === 'speaking') && (
-            <div className="absolute inset-0 bg-teal-50/50 pointer-events-none animate-pulse" />
+          {(voiceState === 'listening' || voiceState === 'speaking' || isPushTalking) && (
+            <div className={`absolute inset-0 pointer-events-none animate-pulse ${isPushTalking ? 'bg-red-50/60' : 'bg-teal-50/50'}`} />
           )}
 
           {/* Status Badge */}
-          <div className="flex items-center gap-2 z-10">
+          <div className="flex flex-wrap items-center justify-center gap-2 z-10">
             <span className={`px-4 py-1.5 rounded-full text-xs font-extrabold flex items-center gap-2 shadow-sm transition-all ${
-              voiceState === 'speaking'
+              isPushTalking
+                ? 'bg-red-100 text-red-800 border border-red-300 ring-4 ring-red-500/30 animate-pulse'
+                : voiceState === 'speaking'
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 ring-2 ring-emerald-500/20 animate-pulse'
                 : voiceState === 'listening'
                 ? 'bg-teal-100 text-teal-800 border border-teal-300 ring-2 ring-teal-500/20'
@@ -759,56 +938,110 @@ function CollegeVoiceSearchContent() {
                 ? 'bg-red-100 text-red-800 border border-red-300'
                 : 'bg-slate-100 text-slate-700 border border-slate-300'
             }`}>
-              {voiceState === 'speaking' && <Volume2 className="w-4 h-4 animate-bounce text-emerald-600" />}
-              {voiceState === 'listening' && <Mic className="w-4 h-4 animate-pulse text-teal-600" />}
-              {voiceState === 'searching' && <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />}
-              {voiceState === 'connecting' && <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />}
-              {voiceState === 'error' && <AlertCircle className="w-4 h-4 text-red-600" />}
-              {voiceState === 'disconnected' && <Radio className="w-4 h-4 text-slate-400" />}
+              {isPushTalking && <Mic className="w-4 h-4 animate-bounce text-red-600" />}
+              {!isPushTalking && voiceState === 'speaking' && <Volume2 className="w-4 h-4 animate-bounce text-emerald-600" />}
+              {!isPushTalking && voiceState === 'listening' && <Mic className="w-4 h-4 animate-pulse text-teal-600" />}
+              {!isPushTalking && voiceState === 'searching' && <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />}
+              {!isPushTalking && voiceState === 'connecting' && <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />}
+              {!isPushTalking && voiceState === 'error' && <AlertCircle className="w-4 h-4 text-red-600" />}
+              {!isPushTalking && voiceState === 'disconnected' && <Radio className="w-4 h-4 text-slate-400" />}
               
               <span className="uppercase tracking-wider">
-                {voiceState === 'speaking' && (language === 'hi' ? 'Uttar diya ja raha hai' : 'Speaking Spoken Answer')}
-                {voiceState === 'listening' && (language === 'hi' ? 'Sun rahe hain... Boliye' : 'Listening... Speak Now')}
-                {voiceState === 'searching' && (language === 'hi' ? 'Website par search jari hai' : 'Searching College Website')}
-                {voiceState === 'connecting' && (language === 'hi' ? 'Connecting Realtime...' : 'Connecting Realtime')}
-                {voiceState === 'error' && 'Session Error'}
-                {voiceState === 'disconnected' && (language === 'hi' ? 'Ready / Idle' : 'Ready / Idle')}
+                {isPushTalking && (language === 'hi' ? 'बोल रहे हैं... छोड़ते ही जवाब आएगा' : 'Recording Voice... Release to Send')}
+                {!isPushTalking && voiceState === 'speaking' && (language === 'hi' ? 'उत्तर दिया जा रहा है' : 'Speaking Spoken Answer')}
+                {!isPushTalking && voiceState === 'listening' && (
+                  voiceMode === 'push_to_talk'
+                    ? (language === 'hi' ? 'पुश-टू-टॉक: बोलने के लिए होल्ड करें' : 'Push-to-Talk: Hold to Speak')
+                    : (language === 'hi' ? 'सुन रहे हैं... बोलिए' : 'Listening... Speak Now')
+                )}
+                {!isPushTalking && voiceState === 'searching' && (language === 'hi' ? 'वेबसाइट पर खोज जारी है' : 'Searching College Website')}
+                {!isPushTalking && voiceState === 'connecting' && (language === 'hi' ? 'रियलटाइम कनेक्ट हो रहा है...' : 'Connecting Realtime')}
+                {!isPushTalking && voiceState === 'error' && 'Session Error'}
+                {!isPushTalking && voiceState === 'disconnected' && (language === 'hi' ? 'तैयार / Idle' : 'Ready / Idle')}
               </span>
             </span>
+
+            {voiceMode === 'push_to_talk' && (
+              <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                <span>Hold to speak &bull; [SPACE]</span>
+              </span>
+            )}
           </div>
 
-          {/* Central Interactive Mic Button */}
+          {/* Central Interactive Mic / Push-to-Talk Button */}
           <div className="relative z-10 py-1">
-            {(voiceState === 'listening' || voiceState === 'speaking') && (
+            {/* Ambient pulse rings */}
+            {(voiceState === 'listening' || voiceState === 'speaking' || isPushTalking) && (
               <>
-                <div className="absolute inset-0 rounded-full bg-teal-400/20 animate-ping" />
-                <div className="absolute -inset-3 rounded-full bg-teal-500/10 animate-pulse" />
+                <div className={`absolute inset-0 rounded-full animate-ping ${isPushTalking ? 'bg-red-400/30' : 'bg-teal-400/20'}`} />
+                <div className={`absolute -inset-3 rounded-full animate-pulse ${isPushTalking ? 'bg-red-500/20' : 'bg-teal-500/10'}`} />
               </>
             )}
 
-            <button
-              onClick={handleStartVoice}
-              disabled={voiceState === 'connecting'}
-              className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all shadow-xl select-none group ${
-                voiceState === 'listening' || voiceState === 'speaking' || voiceState === 'searching'
-                  ? 'bg-gradient-to-tr from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white ring-4 ring-rose-300/50 shadow-rose-500/30'
-                  : 'bg-gradient-to-tr from-teal-600 via-teal-500 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white ring-4 ring-teal-200 shadow-teal-600/30 hover:scale-105'
-              }`}
-            >
-              {voiceState === 'connecting' ? (
+            {/* If DISCONNECTED: Start Button */}
+            {(voiceState === 'disconnected' || voiceState === 'error') && (
+              <button
+                type="button"
+                onClick={handleStartVoice}
+                className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all shadow-xl select-none group bg-gradient-to-tr from-teal-600 via-teal-500 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white ring-4 ring-teal-200 shadow-teal-600/30 hover:scale-105 active:scale-95"
+              >
+                <Mic className="w-9 h-9 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-extrabold mt-1 uppercase tracking-wider">
+                  {voiceMode === 'push_to_talk' ? 'Start PTT' : 'Start Voice'}
+                </span>
+              </button>
+            )}
+
+            {/* If CONNECTING: Spinner */}
+            {voiceState === 'connecting' && (
+              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center bg-teal-700 text-white ring-4 ring-teal-300/40 shadow-xl">
                 <RefreshCw className="w-8 h-8 animate-spin" />
-              ) : voiceState === 'listening' || voiceState === 'speaking' || voiceState === 'searching' ? (
-                <>
-                  <PhoneOff className="w-8 h-8 group-hover:scale-110 transition-transform" />
-                  <span className="text-[10px] font-extrabold mt-1 uppercase tracking-wider">End Voice</span>
-                </>
-              ) : (
-                <>
-                  <Mic className="w-9 h-9 group-hover:scale-110 transition-transform" />
-                  <span className="text-[10px] font-extrabold mt-1 uppercase tracking-wider">Start Voice</span>
-                </>
-              )}
-            </button>
+                <span className="text-[9px] font-extrabold mt-1 uppercase tracking-wider">Connecting</span>
+              </div>
+            )}
+
+            {/* If CONNECTED in PUSH-TO-TALK MODE: Hold-to-speak Button */}
+            {voiceMode === 'push_to_talk' && (voiceState === 'listening' || voiceState === 'speaking' || voiceState === 'searching') && (
+              <button
+                type="button"
+                onMouseDown={handlePushTalkStart}
+                onMouseUp={handlePushTalkEnd}
+                onMouseLeave={handlePushTalkEnd}
+                onTouchStart={handlePushTalkStart}
+                onTouchEnd={handlePushTalkEnd}
+                onTouchCancel={handlePushTalkEnd}
+                className={`relative w-28 h-28 sm:w-32 sm:h-32 rounded-full flex flex-col items-center justify-center transition-all shadow-2xl select-none cursor-pointer group ${
+                  isPushTalking
+                    ? 'bg-gradient-to-tr from-red-600 to-rose-600 text-white ring-8 ring-red-400/50 scale-105 shadow-red-600/40'
+                    : 'bg-gradient-to-tr from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 ring-4 ring-amber-300 shadow-amber-500/30 hover:scale-105 active:scale-95'
+                }`}
+              >
+                {isPushTalking ? (
+                  <>
+                    <Volume2 className="w-10 h-10 animate-pulse text-white" />
+                    <span className="text-[10px] font-black mt-1 uppercase tracking-wider text-white">Release to Send</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-10 h-10 text-slate-950 group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-black mt-1 uppercase tracking-wider">Hold to Speak</span>
+                    <span className="text-[8px] font-bold text-slate-800/80 -mt-0.5">[Spacebar]</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* If CONNECTED in HANDS-FREE MODE: Click to End Call */}
+            {voiceMode === 'hands_free' && (voiceState === 'listening' || voiceState === 'speaking' || voiceState === 'searching') && (
+              <button
+                type="button"
+                onClick={handleEndSession}
+                className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all shadow-xl select-none group bg-gradient-to-tr from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white ring-4 ring-rose-300/50 shadow-rose-500/30 active:scale-95"
+              >
+                <PhoneOff className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-extrabold mt-1 uppercase tracking-wider">End Voice</span>
+              </button>
+            )}
           </div>
 
           {/* Status Subtitle */}
@@ -818,34 +1051,38 @@ function CollegeVoiceSearchContent() {
             </p>
             <p className="text-xs text-slate-500">
               {voiceState === 'disconnected'
-                ? (language === 'hi' ? 'बातचीत शुरू करने के लिए बटन दबाएं। आप बीच में भी बोलकर रोक सकते हैं।' : 'Click button above to speak. You can interrupt the assistant at any time.')
-                : `${activeProject?.college_name} (${activeProject?.base_domain}) - Indian English / Hindi Mode`}
+                ? (voiceMode === 'push_to_talk'
+                    ? (language === 'hi' ? 'पुश-टू-टॉक शुरू करें। बातचीत के दौरान बटन दबाकर रखेंगे तभी आपकी आवाज़ जाएगी।' : 'Start Push-to-Talk. Microphone only transmits while you hold the button or spacebar.')
+                    : (language === 'hi' ? 'हैंड्स-फ्री वॉयस शुरू करें। बेहतर बैकग्राउंड नॉइज़ फिल्टर एक्टिव है।' : 'Start Hands-Free Voice. Realtime calibrated background noise filter active.'))
+                : `${activeProject?.college_name} (${activeProject?.base_domain}) &bull; Indian Tone`}
             </p>
           </div>
 
           {/* Mute & Disconnect controls when active */}
           {(voiceState === 'listening' || voiceState === 'speaking' || voiceState === 'searching') && (
-            <div className="flex items-center gap-3 pt-1 z-10">
-              <button
-                type="button"
-                onClick={toggleMute}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
-                  isMuted
-                    ? 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-400/20'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                }`}
-              >
-                {isMuted ? <MicOff className="w-3.5 h-3.5 text-rose-600" /> : <Mic className="w-3.5 h-3.5 text-slate-600" />}
-                <span>{isMuted ? 'Unmute' : 'Mute Mic'}</span>
-              </button>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1 z-10">
+              {voiceMode === 'hands_free' && (
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    isMuted
+                      ? 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-400/20'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                  }`}
+                >
+                  {isMuted ? <MicOff className="w-3.5 h-3.5 text-rose-600" /> : <Mic className="w-3.5 h-3.5 text-slate-600" />}
+                  <span>{isMuted ? 'Unmute' : 'Mute Mic'}</span>
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={handleEndSession}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1 shadow-sm transition-all"
+                className="px-4 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
               >
                 <PhoneOff className="w-3.5 h-3.5" />
-                <span>End Voice</span>
+                <span>End Voice Session</span>
               </button>
             </div>
           )}
