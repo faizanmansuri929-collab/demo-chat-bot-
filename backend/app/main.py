@@ -33,6 +33,19 @@ app.add_middleware(
 
 app.include_router(api_router)
 
+@app.on_event("startup")
+def startup_event():
+    try:
+        from app.core.database import SessionLocal
+        from app.services.web_search.allowlist import seed_poornima_allowlist
+        db = SessionLocal()
+        try:
+            seed_poornima_allowlist(db)
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[Startup] Warning seeding legacy allowlist: {e}")
+
 @app.get("/")
 def root():
     return {

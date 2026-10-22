@@ -1,14 +1,16 @@
 import os
+import copy
 import json
+import time
 import httpx
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from collections import defaultdict
+from typing import List, Optional, Dict, Any, Literal
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.config import settings
 from app.models.schemas import CollegeWebSearchProjectDB, CollegeWebSourceDB
-from app.services.web_search.allowlist import seed_poornima_allowlist
 from app.services.web_search.search_engine import select_and_fetch_college_sources
 from app.services.web_search.generator import generate_college_web_search_answer
 
@@ -22,13 +24,49 @@ def get_db():
         db.close()
 
 
+# ---------------------------------------------------------------------------
+# In-memory per-IP rate limiter (10 sessions / 60s)
+# ---------------------------------------------------------------------------
+_rate_store: Dict[str, list] = defaultdict(list)
+_RATE_LIMIT = 10
+_RATE_WINDOW = 60  # seconds
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if within limit, False if exceeded."""
+    now = time.monotonic()
+    hits = [t for t in _rate_store[ip] if now - t < _RATE_WINDOW]
+    if len(hits) >= _RATE_LIMIT:
+        _rate_store[ip] = hits
+        return False
+    hits.append(now)
+    _rate_store[ip] = hits
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Pydantic models – TASK B: strict Literals
+# ---------------------------------------------------------------------------
 class CreateVoiceSessionRequest(BaseModel):
-    project_id: Optional[str] = "proj_poornima"
-    voice: Optional[str] = "verse" # alloy, ash, ballad, coral, echo, sage, shimmer, verse
-    language: Optional[str] = "en-IN" # en-IN, hi
-    vad_threshold: Optional[float] = 0.68
-    silence_duration_ms: Optional[int] = 450
-    mode: Optional[str] = "hands_free" # hands_free, push_to_talk
+    project_id: Optional[str] = None  # TASK A: no default; 404 if missing
+    voice: Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"] = "verse"
+    language: Literal["en-IN", "hi"] = "en-IN"
+    mode: Literal["hands_free", "push_to_talk"] = "hands_free"
+    mic_profile: Literal["near_field", "far_field"] = "near_field"
+    barge_in: bool = False
+    vad_threshold: Optional[float] = 0.5
+    silence_duration_ms: Optional[int] = 650
+
+    @validator("vad_threshold")
+    def clamp_vad(cls, v):
+        if v is None:
+            return 0.5
+        return max(0.2, min(0.9, float(v)))
+
+    @validator("silence_duration_ms")
+    def clamp_silence(cls, v):
+        if v is None:
+            return 650
+        return max(200, min(3000, int(v)))
 
 
 class VoiceSessionResponse(BaseModel):
@@ -37,13 +75,10 @@ class VoiceSessionResponse(BaseModel):
     project_id: str
     college_name: str
     base_domain: str
-    model: str
-    voice: str
-    language: str
 
 
 class VoiceSearchToolRequest(BaseModel):
-    project_id: Optional[str] = "proj_poornima"
+    project_id: Optional[str] = None
     query: str
     language: Optional[str] = "en-IN"
     max_sources: Optional[int] = 3
@@ -67,287 +102,428 @@ class VoiceSearchToolResponse(BaseModel):
     detailed_answer: str
 
 
-def build_voice_system_prompt(college_name: str, base_domain: str, language: str = "en-IN") -> str:
-    lang_instruction = ""
-    if language == "hi":
-        lang_instruction = """
-LANGUAGE & SCRIPT (NATURAL HINGLISH):
-- You MUST speak and respond strictly in natural, conversational Hinglish (Hindi words written in clean Roman/Latin alphabet script, e.g. "Poornima University me B.Tech CSE ki annual tuition fee approximately 1.21 Lakhs hai. Full fee breakdown tables aur admission eligibility details aapki screen par show ho rahi hain.").
-- Do NOT output in Devanagari script. Use everyday Indian conversational Hinglish in clean Roman letters.
-- Keep the spoken tone polite, natural, and helpful with an authentic Indian accent.
-"""
-    else:
-        lang_instruction = """
-LANGUAGE & ACCENT (INDIAN ENGLISH):
-- You MUST speak with a natural, polite, professional Indian English tone and cadence.
-- Use standard Indian academic terminology naturally (e.g., 'B.Tech', 'Lakhs per annum', 'hostel accommodation', 'annual fee structure', 'REAP counseling').
-- Keep spoken pronunciation clear, warm, and helpful.
-"""
-
-    return f"""You are the official Indian Voice Assistant for {college_name} (official website: {base_domain}).
-
-CRITICAL MANDATORY DOMAIN-CHECK RULES:
-1. STRICT DOMAIN LOCK (ZERO UNVERIFIED RESPONSES):
-   You are strictly restricted to {college_name} ({base_domain}). You are PROHIBITED from answering any question from general world knowledge without first reading the official domain.
-2. MANDATORY TOOL CALLING BEFORE EVERY RESPONSE:
-   Whenever the user asks ANY question (fees, courses, admissions, eligibility, placements, hostels, faculty, cutoffs, campus), you MUST IMMEDIATELY execute the `college_web_search` tool to read and verify live pages from {base_domain}.
-3. NO OFF-DOMAIN ANSWERS:
-   If the user asks about an unrelated entity, external topic, or general questions not related to {college_name}, you MUST politely refuse:
-   "I can only provide verified information from the official {college_name} website ({base_domain}). Please ask a question about {college_name}."
-4. ABSENCE OF INFORMATION:
-   If the official {base_domain} search does not contain the requested detail, explicitly state that this information is not found on the official {base_domain} website. Do NOT make up numbers or guess.
-5. CONCISE SPOKEN SUMMARY (FOR AUDIO STREAM):
-   - When the tool returns data, speak a short 1 to 2 sentence polite conversational summary aloud (10 to 35 words).
-   - Inform the user that full detailed breakdown tables, branch lists, and verified official links are displayed on their screen.
-   - Example: "B.Tech tuition fee is approximately 1.21 Lakhs per year. I have displayed the complete detailed fee breakdown table and official links on your screen!"
-6. User speech is in English or Hinglish (Hindi in Roman script). Never output or transcribe into unrelated languages or strange scripts.
-7. AMBIENT CROWD & BACKGROUND CHATTER REJECTION (CRITICAL):
-   - You must ONLY respond when a primary user directly addresses you with an admission or college query regarding {college_name}.
-   - If the detected audio is ambient room noise, distant crowd chatter, third-party room conversation (e.g., casual talk like 'kya kar raha hai', 'arrey suno', 'theek hai', 'chalo', laughter, side murmurs, background TV, phone calls, or fragmented words):
-     YOU MUST REMAIN COMPLETELY SILENT. DO NOT CALL ANY TOOL. Output nothing so that background crowd chatter is strictly ignored.
-{lang_instruction}
-"""
+# New /turn request/response models (TASK C)
+class TurnHistoryItem(BaseModel):
+    role: str
+    content: str
 
 
+class VoiceTurnRequest(BaseModel):
+    project_id: str
+    transcript: str
+    language_hint: Optional[str] = "en-IN"
+    history: Optional[List[TurnHistoryItem]] = Field(default_factory=list)
+    stt_meta: Optional[Dict[str, Any]] = None
+
+
+class VoiceSourceOut(BaseModel):
+    title: str
+    url: str
+    category: Optional[str] = "General"
+
+
+class VoiceTurnResponse(BaseModel):
+    should_respond: bool
+    reason: str
+    found: bool
+    intent: str
+    language: str
+    display_markdown: str
+    spoken_summary: str
+    sources: List[VoiceSourceOut]
+    timings_ms: Dict[str, float]
+
+
+# ---------------------------------------------------------------------------
+# TASK B: tiny instructions – voice only speaks what it is given
+# ---------------------------------------------------------------------------
+VOICE_ONLY_INSTRUCTIONS = (
+    "You are only a voice. Speak ONLY the text you are given via response.create, "
+    "exactly and naturally in an Indian accent. Never answer on your own, "
+    "never use general knowledge."
+)
+
+# ---------------------------------------------------------------------------
+# TASK B: verified transcription model constants
+# ---------------------------------------------------------------------------
+# OpenAI Realtime docs confirm `whisper-1` works for input_audio_transcription.
+# `gpt-transcribe` params (languages/keywords) are unverified; use whisper-1 only.
+TRANSCRIPTION_MODEL = "whisper-1"
+
+# Realtime model fallback order (TASK B)
+REALTIME_MODEL_FALLBACK = ["gpt-realtime-mini", "gpt-realtime"]
+
+
+def _build_keywords(college_name: str, base_domain: str) -> list:
+    """Build transcription keywords from project data + generic academic terms."""
+    parts = [p for p in college_name.replace("&", "and").split() if len(p) > 2]
+    domain_part = base_domain.split(".")[0] if base_domain else ""
+    generic = [
+        "B.Tech", "BTech", "M.Tech", "MTech", "BCA", "MCA", "MBA", "BBA", "PhD",
+        "CSE", "Computer Science", "Artificial Intelligence", "AI", "Data Science",
+        "Mechanical", "Civil", "Electrical", "ECE",
+        "hostel", "mess", "tuition fee", "scholarship", "admission",
+        "eligibility", "REAP", "JEE", "CUET", "cutoff", "placement", "package",
+        "registration fee", "application fee",
+    ]
+    all_kw = [college_name] + parts + ([domain_part] if domain_part else []) + generic
+    return list(dict.fromkeys(kw for kw in all_kw if kw))
+
+
+# ---------------------------------------------------------------------------
+# TASK B: /session endpoint
+# ---------------------------------------------------------------------------
 @router.post("/session", response_model=VoiceSessionResponse)
 async def create_voice_realtime_session(
+    request: Request,
     payload: CreateVoiceSessionRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Creates an OpenAI Realtime WebRTC session with ephemeral client credentials:
-    1. Validates the college project and approved domain.
-    2. Builds specialized concise voice instructions with Indian English or Hinglish tone.
-    3. Configures `college_web_search` function tool for live search retrieval.
-    4. Authenticates with OpenAI and returns ephemeral client secret for browser WebRTC.
+    Creates an OpenAI Realtime WebRTC ephemeral session.
+    TASK B changes: strict schema, no tools in session, model fallback list,
+    per-IP rate limiting, 502 on empty secret, sanitised errors.
     """
-    seed_poornima_allowlist(db)
-    
-    project_id = payload.project_id or "proj_poornima"
-    language = payload.language or "en-IN"
-    project = db.query(CollegeWebSearchProjectDB).filter(CollegeWebSearchProjectDB.id == project_id).first()
-    
-    college_name = project.college_name if project else "Poornima University"
-    base_domain = project.base_domain if project else "poornima.org"
-    
-    api_key = settings.OPENAI_API_KEY
-    if not api_key:
+    # Rate limiting (TASK B.5)
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Too many session requests. Please wait and try again.")
+
+    # TASK B.5: auth hook – origin allowlist (permissive by default, lockable via env)
+    allowed_origins_env = os.environ.get("VOICE_ALLOWED_ORIGINS", "")
+    if allowed_origins_env:
+        origin = request.headers.get("origin", "")
+        allowed = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+        if allowed and origin not in allowed:
+            raise HTTPException(status_code=403, detail="Origin not allowed.")
+
+    # TASK A: require project_id; 404 if missing
+    if not payload.project_id:
+        raise HTTPException(status_code=422, detail="project_id is required.")
+
+    project = db.query(CollegeWebSearchProjectDB).filter(
+        CollegeWebSearchProjectDB.id == payload.project_id
+    ).first()
+    if not project:
         raise HTTPException(
-            status_code=500,
-            detail="OPENAI_API_KEY is not configured on the server. Please check backend .env settings."
+            status_code=404,
+            detail=f"College project '{payload.project_id}' not found. Please create it first via POST /api/web-search/projects."
         )
 
-    voice_instructions = build_voice_system_prompt(college_name=college_name, base_domain=base_domain, language=language)
-    
-    # Realtime model configuration
-    model_name = "gpt-realtime-mini"
-    selected_voice = payload.voice if payload.voice in ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"] else "alloy"
+    college_name = project.college_name
+    base_domain = project.base_domain
 
-    # Safe VAD threshold validation (respects provided value and bounds inside 0.0 - 1.0)
-    vad_threshold = float(payload.vad_threshold) if payload.vad_threshold is not None else 0.5
-    vad_threshold = max(0.0, min(1.0, vad_threshold))
+    api_key = settings.OPENAI_API_KEY
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Voice service is temporarily unavailable.")
 
-    # Safe silence duration validation (defaults to 650ms for natural conversation, bounded 200 - 3000ms)
-    silence_ms = int(payload.silence_duration_ms) if payload.silence_duration_ms is not None else 650
-    silence_ms = max(200, min(3000, silence_ms))
+    # TASK B: VAD / turn detection
+    if payload.mode == "push_to_talk":
+        turn_detection_config = None
+    else:
+        turn_detection_config = {
+            "type": "server_vad",
+            "threshold": payload.vad_threshold,
+            "prefix_padding_ms": 300,
+            "silence_duration_ms": payload.silence_duration_ms,
+            "create_response": False,   # TASK B: create_response=false; /turn handles logic
+            "interrupt_response": payload.barge_in
+        }
 
-    turn_detection_config = None if payload.mode == "push_to_talk" else {
-        "type": "server_vad",
-        "threshold": vad_threshold,
-        "prefix_padding_ms": 300,
-        "silence_duration_ms": silence_ms,
-        "create_response": True,
-        "interrupt_response": False
+    # TASK B: transcription – whisper-1 with language hint & college context prompt
+    whisper_lang = "hi" if payload.language == "hi" else "en"
+    transcription_prompt = (
+        f"{college_name}, Poornima University, Jaipur, B.Tech, BTech, M.Tech, BCA, MCA, MBA, "
+        f"CSE, AI, Data Science, Mechanical, Civil, Electrical, hostel fees, mess, tuition fee, "
+        f"admission, eligibility, scholarship, REAP, JEE, CUET"
+    )
+    transcription_config = {
+        "model": TRANSCRIPTION_MODEL,
+        "language": whisper_lang,
+        "prompt": transcription_prompt,
     }
 
-    # Focused Multilingual Transcription Prompt (Hindi, English, Hinglish with domain preservation)
-    transcription_prompt = (
-        f"The speaker is an Indian student or parent speaking in Hindi, English, or mixed conversational Hinglish "
-        f"with English academic and technical terms about {college_name}. "
-        f"Accurately preserve exact college names, course names (B.Tech, BTech, B Tech, M.Tech, BCA, MCA, MBA), "
-        f"branch names (CSE, Computer Science, Computer Engineering, Artificial Intelligence, AI, Data Science, Mechanical, Civil, Electrical), "
-        f"admission terms (REAP, JEE, CUET, eligibility, cutoff), fees (tuition fee, hostel, mess, registration fee, application fee, scholarship, numbers, Lakhs), "
-        f"placements (package, highest package), and locations (Jaipur, Rajasthan)."
-    )
+    # TASK A: build keywords from project data
+    kw = _build_keywords(college_name, base_domain)
 
-    # Transcription Keywords for literal terms likely to be misrecognized
-    transcription_keywords = list(dict.fromkeys([
-        college_name,
-        "Poornima University",
-        "B.Tech",
-        "BTech",
-        "B Tech",
-        "CSE",
-        "Computer Science",
-        "Computer Engineering",
-        "Artificial Intelligence",
-        "AI",
-        "Data Science",
-        "Mechanical",
-        "Civil",
-        "Electrical",
-        "MBA",
-        "BCA",
-        "MCA",
-        "M.Tech",
-        "hostel",
-        "mess",
-        "tuition fee",
-        "admission",
-        "eligibility",
-        "REAP",
-        "JEE",
-        "CUET",
-        "cutoff",
-        "placement",
-        "package",
-        "scholarship",
-        "registration fee",
-        "application fee",
-        "Jaipur",
-        "Rajasthan"
-    ]))
-
-    session_payload = {
+    base_session = {
         "session": {
             "type": "realtime",
-            "model": model_name,
-            "instructions": voice_instructions,
+            "instructions": VOICE_ONLY_INSTRUCTIONS,
             "output_modalities": ["audio"],
             "audio": {
                 "input": {
-                    "transcription": {
-                        "model": "gpt-transcribe",
-                        "languages": ["hi", "en"],
-                        "prompt": transcription_prompt,
-                        "keywords": transcription_keywords
-                    },
+                    "transcription": transcription_config,
+                    "noise_reduction": {"type": payload.mic_profile},
                     "turn_detection": turn_detection_config
                 },
                 "output": {
-                    "voice": selected_voice,
+                    "voice": payload.voice,
                     "speed": 1.0
                 }
             },
-            "tools": [
-                {
-                    "type": "function",
-                    "name": "college_web_search",
-                    "description": f"Mandatory search tool: Searches official {college_name} website ({base_domain}) for live fees, courses, admissions, placements, hostels, and campus details.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "The specific query to search on the official college website, e.g., 'B.Tech CSE fees structure', 'hostel fees', 'placement statistics', 'admission criteria'"
-                            }
-                        },
-                        "required": ["query"]
-                    }
-                }
-            ],
-            "tool_choice": "auto"
+            # TASK B: no tools in session – /turn handles search
         }
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.post(
-                "https://api.openai.com/v1/realtime/client_secrets",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=session_payload
-            )
-            
-            if resp.status_code != 200:
-                err_text = resp.text
-                print(f"[OpenAI Session Warning] Status {resp.status_code}: {err_text}")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
 
-                # Safe fallback if gpt-transcribe or specific parameters are not supported
-                fallback_payload = dict(session_payload)
-                if "gpt-transcribe" in err_text or "transcription" in err_text or "languages" in err_text:
-                    fallback_payload["session"]["audio"]["input"]["transcription"] = {
-                        "model": "whisper-1",
-                        "prompt": transcription_prompt
-                    }
-                else:
-                    fallback_payload["session"]["model"] = "gpt-realtime-2.1"
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for idx, model in enumerate(REALTIME_MODEL_FALLBACK):
+            attempt = copy.deepcopy(base_session)
+            attempt["session"]["model"] = model
 
-                resp_fallback = await client.post(
+            try:
+                resp = await client.post(
                     "https://api.openai.com/v1/realtime/client_secrets",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=fallback_payload
+                    headers=headers,
+                    json=attempt
                 )
-                if resp_fallback.status_code == 200:
-                    data = resp_fallback.json()
-                    ephemeral_val = data.get("value") or data.get("client_secret", {}).get("value", "")
-                    sess_id = data.get("session", {}).get("id") or data.get("id", "")
-                    return VoiceSessionResponse(
-                        client_secret={"value": ephemeral_val, "expires_at": data.get("expires_at")},
-                        session_id=sess_id,
-                        project_id=project_id,
-                        college_name=college_name,
-                        base_domain=base_domain,
-                        model=fallback_payload["session"].get("model", model_name),
-                        voice=selected_voice,
-                        language=language
-                    )
+            except httpx.RequestError as e:
+                raise HTTPException(status_code=502, detail="Could not reach voice service. Please try again.")
 
-                raise HTTPException(
-                    status_code=resp.status_code,
-                    detail=f"OpenAI Realtime Session creation failed: {err_text}"
+            if resp.status_code == 200:
+                data = resp.json()
+                ephemeral_val = (
+                    data.get("value")
+                    or data.get("client_secret", {}).get("value", "")
+                )
+                # TASK B.5: 502 if empty secret
+                if not ephemeral_val:
+                    print(f"[VoiceSession] Empty ephemeral secret from OpenAI. Response: {data}")
+                    raise HTTPException(status_code=502, detail="Voice service returned an invalid token. Please try again.")
+
+                sess_id = data.get("session", {}).get("id") or data.get("id", "")
+                return VoiceSessionResponse(
+                    client_secret={"value": ephemeral_val, "expires_at": data.get("expires_at")},
+                    session_id=sess_id,
+                    project_id=payload.project_id,
+                    college_name=college_name,
+                    base_domain=base_domain
                 )
 
-            data = resp.json()
-            ephemeral_val = data.get("value") or data.get("client_secret", {}).get("value", "")
-            sess_id = data.get("session", {}).get("id") or data.get("id", "")
-            return VoiceSessionResponse(
-                client_secret={"value": ephemeral_val, "expires_at": data.get("expires_at")},
-                session_id=sess_id,
-                project_id=project_id,
-                college_name=college_name,
-                base_domain=base_domain,
-                model=model_name,
-                voice=selected_voice,
-                language=language
-            )
-    except httpx.RequestError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Network error connecting to OpenAI Realtime API: {str(e)}"
+            # TASK B: retry ONLY on 4xx param errors, not on 401/429/5xx
+            status = resp.status_code
+            err_text = resp.text
+            print(f"[VoiceSession] Attempt {idx+1} model={model} status={status}: {err_text[:200]}")
+
+            if status in (401, 429) or status >= 500:
+                # Never retry auth/rate/server errors
+                raise HTTPException(status_code=502, detail="Voice service temporarily unavailable.")
+
+            if idx == len(REALTIME_MODEL_FALLBACK) - 1:
+                # Last model in fallback – give up
+                raise HTTPException(status_code=502, detail="Voice service could not start a session. Please try again later.")
+            # else: loop to next model (400-class param error)
+
+    raise HTTPException(status_code=502, detail="Voice service could not start a session.")
+
+
+# ---------------------------------------------------------------------------
+# TASK C: new /turn endpoint
+# ---------------------------------------------------------------------------
+@router.post("/turn", response_model=VoiceTurnResponse)
+async def voice_turn(
+    payload: VoiceTurnRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    TASK C: Main voice turn handler.
+    1. Gate (voice_gate.py) – silent/off-topic checks.
+    2. Detect language.
+    3. Call generate_college_web_search_answer.
+    4. Build spoken_summary.
+    5. Return structured response.
+    """
+    import time as _time
+    t0 = _time.monotonic()
+
+    # Import gate and summary helpers
+    from app.services.web_search.voice_gate import gate_transcript
+    from app.services.web_search.voice_summary import build_spoken_summary
+    from app.models.schemas import ChatMessage
+
+    transcript = (payload.transcript or "").strip()
+    project_id = payload.project_id
+    if not project_id:
+        raise HTTPException(status_code=422, detail="project_id is required.")
+
+    if not transcript:
+        return VoiceTurnResponse(
+            should_respond=False,
+            reason="empty_transcript",
+            found=False,
+            intent="empty",
+            language=payload.language_hint or "en-IN",
+            display_markdown="",
+            spoken_summary="",
+            sources=[],
+            timings_ms={"total_ms": 0.0}
         )
 
+    # Verify project exists
+    project = db.query(CollegeWebSearchProjectDB).filter(
+        CollegeWebSearchProjectDB.id == project_id
+    ).first()
+    if not project:
+        raise HTTPException(
+            status_code=404,
+            detail=f"College project '{project_id}' not found."
+        )
 
+    college_name = project.college_name
+    base_domain = project.base_domain
+    language_hint = payload.language_hint or "en-IN"
+    history_dicts = [
+        {"role": h.role, "content": h.content}
+        for h in (payload.history or [])
+        if h.role in ("user", "assistant") and h.content.strip()
+    ][-6:]
+
+    t_gate_start = _time.monotonic()
+    gate_result = await gate_transcript(
+        transcript=transcript,
+        college_name=college_name,
+        base_domain=base_domain,
+        history=history_dicts,
+        language=language_hint
+    )
+    t_gate = (_time.monotonic() - t_gate_start) * 1000
+
+    # Gate says silent
+    if not gate_result["should_respond"]:
+        return VoiceTurnResponse(
+            should_respond=False,
+            reason=gate_result["reason"],
+            found=False,
+            intent=gate_result.get("intent", "chatter"),
+            language=language_hint,
+            display_markdown="",
+            spoken_summary="",
+            sources=[],
+            timings_ms={"gate_ms": round(t_gate, 1), "total_ms": round((_time.monotonic() - t0) * 1000, 1)}
+        )
+
+    # Greeting / off-topic refusals
+    if gate_result["intent"] in ("greeting", "off_topic"):
+        return VoiceTurnResponse(
+            should_respond=True,
+            reason=gate_result["reason"],
+            found=True,
+            intent=gate_result["intent"],
+            language=language_hint,
+            display_markdown=gate_result.get("reply_text", ""),
+            spoken_summary=gate_result.get("reply_text", ""),
+            sources=[],
+            timings_ms={"gate_ms": round(t_gate, 1), "total_ms": round((_time.monotonic() - t0) * 1000, 1)}
+        )
+
+    # Build history as ChatMessage list
+    history_msgs = [ChatMessage(role=h["role"], content=h["content"]) for h in history_dicts]
+
+    t_search_start = _time.monotonic()
+    try:
+        chat_res = await generate_college_web_search_answer(
+            project_id=project_id,
+            user_message=transcript,
+            history=history_msgs,
+            include_debug=False,
+            db=db,
+            voice_mode=True
+        )
+    except Exception as e:
+        print(f"[VoiceTurn] Search error: {e}")
+        return VoiceTurnResponse(
+            should_respond=True,
+            reason="search_error",
+            found=False,
+            intent="general",
+            language=language_hint,
+            display_markdown=f"I'm sorry, I couldn't find that information right now. Please contact {college_name} directly.",
+            spoken_summary=f"I'm sorry, I couldn't find that information right now.",
+            sources=[],
+            timings_ms={"total_ms": round((_time.monotonic() - t0) * 1000, 1)}
+        )
+    t_search = (_time.monotonic() - t_search_start) * 1000
+
+    detected_intent = (chat_res.detected_intent or "general").lower()
+    found = len(chat_res.sources or []) > 0
+
+    spoken = getattr(chat_res, "spoken_summary", None)
+    if not spoken:
+        spoken = build_spoken_summary(
+            intent=detected_intent,
+            college_name=college_name,
+            language=language_hint,
+            answer_markdown=chat_res.answer
+        )
+
+    sources_out = [
+        VoiceSourceOut(
+            title=s.title or f"{college_name} Official Page",
+            url=s.url,
+            category=getattr(s, "category", "General")
+        )
+        for s in (chat_res.sources or [])
+    ]
+
+    total_ms = (_time.monotonic() - t0) * 1000
+    return VoiceTurnResponse(
+        should_respond=True,
+        reason="college_query",
+        found=found,
+        intent=detected_intent,
+        language=language_hint,
+        display_markdown=chat_res.answer,
+        spoken_summary=spoken,
+        sources=sources_out,
+        timings_ms={
+            "gate_ms": round(t_gate, 1),
+            "search_ms": round(t_search, 1),
+            "total_ms": round(total_ms, 1)
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# TASK C: /search-tool kept as thin deprecated wrapper
+# ---------------------------------------------------------------------------
 @router.post("/search-tool", response_model=VoiceSearchToolResponse)
 async def execute_voice_search_tool(
     payload: VoiceSearchToolRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Executes the exact same College Web Search pipeline as text search:
-    1. Calls `generate_college_web_search_answer` directly to get the identical grounded markdown answer, fee tables & verified sources.
-    2. Constructs a crisp 1-2 sentence spoken summary for voice audio.
-    3. Returns full structured tables & citations for screen display.
+    Deprecated: use POST /turn instead.
+    Thin wrapper that calls generate_college_web_search_answer.
     """
-    seed_poornima_allowlist(db)
-    
-    project_id = payload.project_id or "proj_poornima"
+    from app.services.web_search.voice_summary import build_spoken_summary
+
+    project_id = payload.project_id
+    if not project_id:
+        raise HTTPException(status_code=422, detail="project_id is required.")
+
+    project = db.query(CollegeWebSearchProjectDB).filter(
+        CollegeWebSearchProjectDB.id == project_id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+
     language = payload.language or "en-IN"
     query = payload.query.strip()
-    
+
     chat_res = await generate_college_web_search_answer(
         project_id=project_id,
         user_message=query,
         history=[],
         include_debug=False,
-        db=db
+        db=db,
+        voice_mode=True
     )
-    
+
     sources_list: List[VoiceSourceItem] = []
     for s in (chat_res.sources or []):
         sources_list.append(VoiceSourceItem(
@@ -356,14 +532,17 @@ async def execute_voice_search_tool(
             score=1.0,
             category=getattr(s, "category", "General")
         ))
-    
-    # Generate concise spoken summary for the audio model
-    spoken_summary = ""
-    if language == "hi":
-        spoken_summary = f"{chat_res.college_name} ki official website se verified information aur fees tables niche screen par show ho rahi hain."
-    else:
-        spoken_summary = f"I found the verified details and fee breakdown from {chat_res.college_name}'s official website and displayed the complete table on your screen."
-    
+
+    intent = (chat_res.detected_intent or "general").lower()
+    spoken_summary = getattr(chat_res, "spoken_summary", None)
+    if not spoken_summary:
+        spoken_summary = build_spoken_summary(
+            intent=intent,
+            college_name=chat_res.college_name,
+            language=language,
+            answer_markdown=chat_res.answer
+        )
+
     return VoiceSearchToolResponse(
         query=query,
         college_name=chat_res.college_name,

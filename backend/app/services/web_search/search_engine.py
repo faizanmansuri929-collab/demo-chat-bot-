@@ -18,7 +18,8 @@ async def select_and_fetch_college_sources(
     user_message: str,
     history: Optional[List[Dict[str, str]]] = None,
     db: Optional[Session] = None,
-    max_sources: int = 5
+    max_sources: int = 5,
+    voice_mode: bool = False
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any], str, str]:
     """
     Generic Multi-College Live Web Search Decision Engine:
@@ -35,11 +36,19 @@ async def select_and_fetch_college_sources(
     if db:
         project = db.query(CollegeWebSearchProjectDB).filter(CollegeWebSearchProjectDB.id == project_id).first()
     
-    college_name = project.college_name if project else "College / University"
-    base_domain = project.base_domain if project else "poornima.org"
+    if not project:
+        if project_id in ["proj_poornima", "poornima_config", "poornima"]:
+            college_name = "Poornima University & Colleges"
+            base_domain = "poornima.org"
+        else:
+            intent_info = {"intent": "general", "search_query": "", "is_greeting": False, "is_off_topic": False, "target_categories": []}
+            return [], [], intent_info, f"College project '{project_id}' not found.", ""
+    else:
+        college_name = project.college_name
+        base_domain = project.base_domain
     
-    # Allow flexible higher max sources if needed (default to at least 5)
-    effective_max = max(max_sources, 5)
+    # Both Live Chat and Voice Feature dynamically select 3 to 5 URLs from sitemap
+    effective_max = max(3, min(max_sources if max_sources is not None else 5, 5))
     
     intent_info = classify_college_intent(user_message, college_name=college_name, base_domain=base_domain, history=history)
     
@@ -58,7 +67,7 @@ async def select_and_fetch_college_sources(
             CollegeWebSourceDB.is_enabled == 1
         ).all()
         
-        # Fallback to legacy table if project is poornima and no generic sources
+        # Fallback to legacy table ONLY if project is poornima and no generic sources
         if not active_sources and project_id in ["proj_poornima", "poornima_config", "poornima"]:
             legacy_sources = db.query(WebSearchSourceDB).filter(WebSearchSourceDB.is_enabled == 1).all()
             active_sources = legacy_sources
@@ -157,7 +166,7 @@ async def select_and_fetch_college_sources(
             for s in active_sources[:5]
         ]
 
-    # 3. OpenAI Dynamic Link Selection (Select 1 to effective_max best pages)
+    # 3. OpenAI Dynamic Link Selection (Select 3 to 5 best pages from sitemap)
     selected_sources = []
     ai_reason = "Selected based on highest relevance score and intent alignment."
 
@@ -168,7 +177,9 @@ async def select_and_fetch_college_sources(
             for idx, c in enumerate(top_candidates[:18])
         ])
         
-        selection_prompt = f"""You are the URL selector for {college_name} Web Search ({base_domain}).
+        target_count = min(effective_max, len(top_candidates))
+        min_target = min(3, target_count)
+        selection_prompt = f"""You are the official URL selector for {college_name} Web Search ({base_domain}).
 User Question: "{user_message}"
 Detected Intent: {intent_info['intent']}
 
@@ -176,9 +187,9 @@ Here are top candidate official URLs from the {college_name} sitemap inventory:
 {candidates_listing}
 
 Task:
-Decide which URLs from the list above are MOST RELEVANT to answer the user's inquiry thoroughly.
-You can select between 1 to {effective_max} URLs.
-If the inquiry is multi-faceted or requires comprehensive information (for example: fee structure, admission steps, branch details, hostel fees), select ALL relevant URLs (up to {effective_max} pages) so the answer has complete data without omitting facts.
+Decide which official URLs from the list above are MOST RELEVANT to answer the user's inquiry thoroughly.
+Select between {min_target} to {target_count} URLs.
+Pick complementary official pages (for example: main course/program page, fee structure, admission criteria, hostel facilities) to ensure complete factual coverage without omitting details.
 
 Output strictly valid JSON with this exact format:
 {{"selected_indexes": [1, 2, 3], "reason": "brief explanation for choosing these pages"}}"""
@@ -197,6 +208,14 @@ Output strictly valid JSON with this exact format:
                             selected_sources.append(cand)
         except Exception as e:
             print(f"[SearchEngine] LLM URL selection fallback: {e}")
+
+    # Ensure 3 to 5 URLs are selected whenever enough candidate URLs exist
+    desired_count = min(effective_max, len(top_candidates))
+    for cand in top_candidates:
+        if len(selected_sources) >= desired_count:
+            break
+        if cand not in selected_sources:
+            selected_sources.append(cand)
 
     # Enforce effective_max slice
     if selected_sources:
@@ -217,6 +236,9 @@ Output strictly valid JSON with this exact format:
     # Attach fetched live content
     selected_sources_with_content = []
     for s, f in zip(selected_sources, fetched_results):
+        raw_content = f.get("content", "")
+        if voice_mode and len(raw_content) > 8000:
+            raw_content = raw_content[:8000]
         selected_sources_with_content.append({
             "id": s["id"],
             "url": s["url"],
@@ -224,7 +246,7 @@ Output strictly valid JSON with this exact format:
             "category": s.get("category", "General"),
             "source_type": s.get("source_type", "HTML"),
             "score": s.get("score", 1.0),
-            "content": f.get("content", ""),
+            "content": raw_content,
             "fetch_status": f.get("status", "FETCHED")
         })
 

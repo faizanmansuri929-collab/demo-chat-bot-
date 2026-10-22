@@ -6,22 +6,23 @@ import {
   Users, UserCheck, Flame, Calendar, Clock,
   Search, X, Sparkles, Sliders, FileText,
   BarChart2, ShieldCheck, MessageSquare, Send,
-  Bot, User, CheckCircle2, PhoneCall, RefreshCw,
-  ExternalLink, ArrowRight, Zap, Check, ChevronRight
+  Bot, CheckCircle2, PhoneCall, RefreshCw,
+  ExternalLink, ArrowRight, Zap, ChevronRight,
+  Database, Trash2, Download, Plus, Filter,
+  Phone, Mail, Check, AlertCircle, Building2
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import DashboardShell from '@/components/DashboardShell';
 import { MarkdownContent } from '@/components/MarkdownContent';
+import { api } from '@/lib/api';
 
-/* ===================== DATA DEFINITIONS ===================== */
-const NOW = new Date('2026-10-01T11:30:00');
-
+/* ===================== SCORING & COUNSELLOR CONSTANTS ===================== */
 interface ScoringSignal {
   p: number;
   g: string;
   l: string;
 }
 
-const W: Record<string, ScoringSignal> = {
+const SCORING_WEIGHTS: Record<string, ScoringSignal> = {
   name: { p: 3, g: 'Profile', l: 'Name captured' },
   verified: { p: 7, g: 'Profile', l: 'Direct phone provided (No OTP)' },
   programme: { p: 5, g: 'Profile', l: 'Programme identified' },
@@ -52,28 +53,28 @@ interface Counsellor {
 }
 
 const COUNSELLORS: Counsellor[] = [
-  // --- 1. COMPUTER SCIENCE & ENGINEERING (CSE) - 5 DEMO COUNSELLORS ---
+  // --- 1. COMPUTER SCIENCE & ENGINEERING (CSE) - 5 COUNSELLORS ---
   { id: 'C_CSE_1', name: 'Neha Mathur', branch: 'CSE', group: 'B.Tech Computer Science (CSE)', specialization: 'Core CSE & Cloud Admissions', phone: '+91 90010 20001', email: 'neha.mathur@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 40 },
   { id: 'C_CSE_2', name: 'Saurabh Gupta', branch: 'CSE', group: 'B.Tech Computer Science (CSE)', specialization: 'AI, Data Science & ML Focus', phone: '+91 90010 20002', email: 'saurabh.gupta@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 40 },
   { id: 'C_CSE_3', name: 'Priya Nair', branch: 'CSE', group: 'B.Tech Computer Science (CSE)', specialization: 'Cyber Security & Networks', phone: '+91 90010 20003', email: 'priya.nair@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
   { id: 'C_CSE_4', name: 'Rohan Verma', branch: 'CSE', group: 'B.Tech Computer Science (CSE)', specialization: 'Data Analytics & Big Data', phone: '+91 90010 20004', email: 'rohan.verma@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
   { id: 'C_CSE_5', name: 'Ananya Sen', branch: 'CSE', group: 'B.Tech Computer Science (CSE)', specialization: 'Full-Stack Software Systems', phone: '+91 90010 20005', email: 'ananya.sen@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
 
-  // --- 2. CIVIL ENGINEERING - 5 DEMO COUNSELLORS ---
+  // --- 2. CIVIL ENGINEERING - 5 COUNSELLORS ---
   { id: 'C_CIV_1', name: 'Rajesh Sharma', branch: 'Civil', group: 'B.Tech Civil Engineering', specialization: 'Structural & Concrete Technology', phone: '+91 90010 20011', email: 'rajesh.sharma@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 40 },
   { id: 'C_CIV_2', name: 'Manoj Kumar', branch: 'Civil', group: 'B.Tech Civil Engineering', specialization: 'Highway & Transportation Systems', phone: '+91 90010 20012', email: 'manoj.kumar@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
   { id: 'C_CIV_3', name: 'Deepak Meena', branch: 'Civil', group: 'B.Tech Civil Engineering', specialization: 'Geotechnical & Construction Site', phone: '+91 90010 20013', email: 'deepak.meena@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
   { id: 'C_CIV_4', name: 'Sunita Kaswan', branch: 'Civil', group: 'B.Tech Civil Engineering', specialization: 'Urban Infrastructure & Smart City', phone: '+91 90010 20014', email: 'sunita.kaswan@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 30 },
   { id: 'C_CIV_5', name: 'Pooja Choudhary', branch: 'Civil', group: 'B.Tech Civil Engineering', specialization: 'Environmental & Water Resources', phone: '+91 90010 20015', email: 'pooja.choudhary@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 30 },
 
-  // --- 3. ELECTRONICS ENGINEERING (ECE) - 5 DEMO COUNSELLORS ---
+  // --- 3. ELECTRONICS ENGINEERING (ECE) - 5 COUNSELLORS ---
   { id: 'C_ECE_1', name: 'Vikram Joshi', branch: 'Electronic', group: 'B.Tech Electronics (ECE)', specialization: 'VLSI Design & Microchips', phone: '+91 90010 20021', email: 'vikram.joshi@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 40 },
   { id: 'C_ECE_2', name: 'Sunita Rao', branch: 'Electronic', group: 'B.Tech Electronics (ECE)', specialization: 'Embedded Systems & IoT Devices', phone: '+91 90010 20022', email: 'sunita.rao@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 40 },
   { id: 'C_ECE_3', name: 'Abhishek Rathore', branch: 'Electronic', group: 'B.Tech Electronics (ECE)', specialization: '5G Telecom & Wireless Systems', phone: '+91 90010 20023', email: 'abhishek.rathore@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
   { id: 'C_ECE_4', name: 'Meenakshi Sen', branch: 'Electronic', group: 'B.Tech Electronics (ECE)', specialization: 'Robotics & Signal Hardware', phone: '+91 90010 20024', email: 'meenakshi.sen@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
   { id: 'C_ECE_5', name: 'Karan Singhania', branch: 'Electronic', group: 'B.Tech Electronics (ECE)', specialization: 'Circuit Design & Hardware Labs', phone: '+91 90010 20025', email: 'karan.singhania@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 30 },
 
-  // --- 4. MECHANICAL ENGINEERING - 5 DEMO COUNSELLORS ---
+  // --- 4. MECHANICAL ENGINEERING - 5 COUNSELLORS ---
   { id: 'C_MECH_1', name: 'Ajay Meena', branch: 'Mechanical', group: 'B.Tech Mechanical Engg', specialization: 'Automobile & Electric Vehicles (EV)', phone: '+91 90010 20031', email: 'ajay.meena@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 40 },
   { id: 'C_MECH_2', name: 'Sandeep Verma', branch: 'Mechanical', group: 'B.Tech Mechanical Engg', specialization: 'Robotics & Automation Industry', phone: '+91 90010 20032', email: 'sandeep.verma@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
   { id: 'C_MECH_3', name: 'Harish Pareek', branch: 'Mechanical', group: 'B.Tech Mechanical Engg', specialization: 'CAD / CAM & Product Prototyping', phone: '+91 90010 20033', email: 'harish.pareek@poornima.example', calendar: 'Google – connected', hours: 'Mon–Sat 9:30–5:30', maxOpen: 35 },
@@ -89,141 +90,222 @@ interface Programme {
   id: string;
   name: string;
   branch: string;
-  aliases: string;
   group: string;
   elig: string;
 }
 
 const PROGRAMMES: Programme[] = [
-  { id: 'P01', name: 'B.Tech Computer Science (CSE)', branch: 'Computer Science (CSE)', aliases: 'cse, computer science, btech cs, ai, data science', group: 'Engineering - CSE', elig: '10+2 PCM, min 60% in PCM' },
-  { id: 'P02', name: 'B.Tech Civil Engineering', branch: 'Civil Engineering', aliases: 'civil, civil engineering, construction', group: 'Engineering - Civil', elig: '10+2 PCM, min 50% in PCM' },
-  { id: 'P03', name: 'B.Tech Electronics (ECE)', branch: 'Electronics Engineering (ECE)', aliases: 'electronic, electronics, ece, electrical', group: 'Engineering - Electronics', elig: '10+2 PCM, min 55% in PCM' },
-  { id: 'P04', name: 'B.Tech Mechanical Engineering', branch: 'Mechanical Engineering', aliases: 'mechanical, mech, automobile', group: 'Engineering - Mechanical', elig: '10+2 PCM, min 50% in PCM' },
-  { id: 'P05', name: 'BCA', branch: 'Computer Applications', aliases: 'bca, computer applications', group: 'Computing', elig: '10+2 any stream with Maths, min 50%' },
-  { id: 'P06', name: 'BBA', branch: 'Business Administration', aliases: 'bba, business administration', group: 'Management', elig: '10+2 any stream, min 50%' },
-  { id: 'P07', name: 'MBA', branch: 'Management', aliases: 'mba, pgdm', group: 'Management', elig: 'Graduation min 50%, CAT/MAT/CMAT or PU test' },
-  { id: 'P08', name: 'B.Des', branch: 'Design & Arts', aliases: 'design, bdes, fashion, interior', group: 'Design & Arts', elig: '10+2 any stream, min 50% + design aptitude test' }
+  { id: 'P01', name: 'B.Tech Computer Science (CSE)', branch: 'Computer Science (CSE)', group: 'Engineering - CSE', elig: '10+2 PCM, min 60% in PCM' },
+  { id: 'P02', name: 'B.Tech Civil Engineering', branch: 'Civil Engineering', group: 'Engineering - Civil', elig: '10+2 PCM, min 50% in PCM' },
+  { id: 'P03', name: 'B.Tech Electronics (ECE)', branch: 'Electronics Engineering (ECE)', group: 'Engineering - Electronics', elig: '10+2 PCM, min 55% in PCM' },
+  { id: 'P04', name: 'B.Tech Mechanical Engineering', branch: 'Mechanical Engineering', group: 'Engineering - Mechanical', elig: '10+2 PCM, min 50% in PCM' },
+  { id: 'P05', name: 'BCA', branch: 'Computer Applications', group: 'Computing', elig: '10+2 any stream with Maths, min 50%' },
+  { id: 'P06', name: 'BBA', branch: 'Business Administration', group: 'Management', elig: '10+2 any stream, min 50%' },
+  { id: 'P07', name: 'MBA', branch: 'Management', group: 'Management', elig: 'Graduation min 50%, CAT/MAT/CMAT or PU test' },
+  { id: 'P08', name: 'B.Des', branch: 'Design & Arts', group: 'Design & Arts', elig: '10+2 any stream, min 50% + design aptitude test' }
 ];
 
-interface LeadItem {
+export interface LeadItem {
   id: string;
   name: string;
   phone: string;
   email: string;
-  persona: string;
-  rel: string;
-  prog: string | null;
-  branch?: string;
+  course: string;
+  branch: string;
   city: string;
   state: string;
   channel: string;
-  page: string;
-  utm: string;
   academic: string;
-  sig: string[];
-  adj: { l: string; p: number }[];
-  dq: string | null;
-  status: string;
-  c: string | null;
+  status: 'New' | 'Qualified' | 'Contacted' | 'Converted';
+  counsellorId?: string;
+  counsellorName?: string;
   created: string;
-  last: string;
-  slaDue: string | null;
-  contacted: boolean;
   summary: string;
-  score?: number;
-  tier?: 'Hot' | 'Warm' | 'Cold' | 'DQ';
+  score: number;
+  tier: 'Hot' | 'Warm' | 'Cold';
   breakdown?: { l: string; g: string; p: number }[];
-  isReal?: boolean;
+  isReal: boolean;
 }
 
-const INITIAL_DEMO_LEADS: LeadItem[] = [
+const SAMPLE_LEADS_DATA: LeadItem[] = [
   {
-    id: 'L-1001', name: 'Priya Sharma', phone: '+91 98290 11001', email: 'priya.s@mail.example', persona: 'Student', rel: 'Self', prog: 'P01', branch: 'Computer Science (CSE)', city: 'Jaipur', state: 'Rajasthan', channel: 'Website', page: '/admissions/btech', utm: 'organic', academic: '12th PCM · RBSE · 82% · 2026',
-    sig: ['name', 'verified', 'programme', 'fees', 'marks', 'timeline', 'msgs6', 'booked', 'eligible', 'region'], adj: [], dq: null, status: 'BOOKED', c: 'C_CSE_1', created: '2026-09-30T22:46', last: '2026-10-01T09:20', slaDue: null, contacted: false,
-    summary: 'Class 12 PCM student, 82%, wants B.Tech CSE for 2026 intake. Asked fee and scholarship. Assigned to Neha Mathur.'
+    id: 'L-1001',
+    name: 'Priya Sharma',
+    phone: '+91 98290 11001',
+    email: 'priya.s@example.com',
+    course: 'B.Tech',
+    branch: 'Computer Science (CSE)',
+    city: 'Jaipur',
+    state: 'Rajasthan',
+    channel: 'Live Web Chat',
+    academic: '12th PCM · 82%',
+    status: 'Qualified',
+    counsellorId: 'C_CSE_1',
+    counsellorName: 'Neha Mathur (B.Tech CSE)',
+    created: '2026-10-12T10:30',
+    summary: '12th PCM 82%, enquired for B.Tech CSE 2026 intake and hostel fees.',
+    score: 86,
+    tier: 'Hot',
+    breakdown: [
+      { l: 'Name captured', g: 'Profile', p: 3 },
+      { l: 'Direct phone provided (No OTP)', g: 'Profile', p: 7 },
+      { l: 'Programme identified', g: 'Profile', p: 5 },
+      { l: 'Asked fees / scholarship', g: 'Intent', p: 8 },
+      { l: 'Shared marks / stream', g: 'Intent', p: 8 },
+      { l: 'Marks meet programme eligibility', g: 'Fit', p: 12 },
+      { l: 'From target region (Rajasthan)', g: 'Fit', p: 8 },
+      { l: 'Live Web Chat Lead Capture', g: 'Engagement', p: 15 },
+      { l: 'Booked counselling / visit', g: 'Engagement', p: 10 }
+    ],
+    isReal: false
   },
   {
-    id: 'L-1002', name: 'Arjun Rathore', phone: '+91 94140 11002', email: '', persona: 'Student', rel: 'Self', prog: 'P01', branch: 'Computer Science (CSE)', city: 'Jodhpur', state: 'Rajasthan', channel: 'WhatsApp', page: '—', utm: 'whatsapp_click', academic: '12th PCM · CBSE · 76% · 2026',
-    sig: ['name', 'verified', 'programme', 'fees', 'process', 'marks', 'timeline', 'visit', 'msgs6', 'returning', 'eligible', 'region'], adj: [], dq: null, status: 'QUALIFIED', c: 'C_CSE_2', created: '2026-10-01T10:52', last: '2026-10-01T10:58', slaDue: '2026-10-01T11:28', contacted: false,
-    summary: 'PCM 76%, second visit. Comparing B.Tech AI & DS hostel fees and placements. Assigned to Saurabh Gupta.'
+    id: 'L-1002',
+    name: 'Arjun Rathore',
+    phone: '+91 94140 11002',
+    email: 'arjun.r@example.com',
+    course: 'B.Tech',
+    branch: 'Computer Science (CSE)',
+    city: 'Jodhpur',
+    state: 'Rajasthan',
+    channel: 'Live Web Chat',
+    academic: '12th PCM · 76%',
+    status: 'Qualified',
+    counsellorId: 'C_CSE_2',
+    counsellorName: 'Saurabh Gupta (B.Tech CSE)',
+    created: '2026-10-11T14:20',
+    summary: 'Enquired about B.Tech AI & Data Science labs and merit scholarships.',
+    score: 78,
+    tier: 'Hot',
+    breakdown: [
+      { l: 'Name captured', g: 'Profile', p: 3 },
+      { l: 'Direct phone provided (No OTP)', g: 'Profile', p: 7 },
+      { l: 'Programme identified', g: 'Profile', p: 5 },
+      { l: 'Asked fees / scholarship', g: 'Intent', p: 8 },
+      { l: 'Shared marks / stream', g: 'Intent', p: 8 },
+      { l: 'Marks meet programme eligibility', g: 'Fit', p: 12 },
+      { l: 'From target region (Rajasthan)', g: 'Fit', p: 8 },
+      { l: 'Live Web Chat Lead Capture', g: 'Engagement', p: 15 }
+    ],
+    isReal: false
   },
   {
-    id: 'L-1003', name: 'Suresh Verma', phone: '+91 94140 22001', email: 'suresh.v@mail.example', persona: 'Student', rel: 'Self', prog: 'P02', branch: 'Civil Engineering', city: 'Kota', state: 'Rajasthan', channel: 'Website', page: '/admissions/civil', utm: 'organic', academic: '12th PCM · RBSE · 74% · 2026',
-    sig: ['name', 'verified', 'programme', 'fees', 'marks', 'timeline', 'eligible', 'region'], adj: [], dq: null, status: 'QUALIFIED', c: 'C_CIV_1', created: '2026-09-30T14:15', last: '2026-09-30T15:20', slaDue: null, contacted: false,
-    summary: 'Class 12 PCM 74%, wants B.Tech Civil Engineering. Asked structural concrete labs & construction site visits. Assigned to Rajesh Sharma.'
+    id: 'L-1003',
+    name: 'Suresh Verma',
+    phone: '+91 94140 22001',
+    email: 'suresh.v@example.com',
+    course: 'B.Tech',
+    branch: 'Civil Engineering',
+    city: 'Kota',
+    state: 'Rajasthan',
+    channel: 'Live Web Chat',
+    academic: '12th PCM · 74%',
+    status: 'Qualified',
+    counsellorId: 'C_CIV_1',
+    counsellorName: 'Rajesh Sharma (B.Tech Civil)',
+    created: '2026-10-09T16:45',
+    summary: '12th PCM 74%, interested in Civil Engineering and concrete structure labs.',
+    score: 72,
+    tier: 'Hot',
+    breakdown: [
+      { l: 'Name captured', g: 'Profile', p: 3 },
+      { l: 'Direct phone provided (No OTP)', g: 'Profile', p: 7 },
+      { l: 'Programme identified', g: 'Profile', p: 5 },
+      { l: 'Asked fees / scholarship', g: 'Intent', p: 8 },
+      { l: 'Marks meet programme eligibility', g: 'Fit', p: 12 },
+      { l: 'From target region (Rajasthan)', g: 'Fit', p: 8 },
+      { l: 'Live Web Chat Lead Capture', g: 'Engagement', p: 15 }
+    ],
+    isReal: false
   },
   {
-    id: 'L-1004', name: 'Ankit Soni', phone: '+91 98280 33001', email: 'ankit.s@mail.example', persona: 'Student', rel: 'Self', prog: 'P03', branch: 'Electronics Engineering (ECE)', city: 'Alwar', state: 'Rajasthan', channel: 'Website', page: '/admissions/ece', utm: 'google_ads', academic: '12th PCM · CBSE · 80% · 2026',
-    sig: ['name', 'verified', 'programme', 'fees', 'marks', 'visit', 'eligible', 'region'], adj: [], dq: null, status: 'QUALIFIED', c: 'C_ECE_1', created: '2026-09-29T11:30', last: '2026-09-29T12:00', slaDue: null, contacted: false,
-    summary: 'Class 12 PCM 80%, exploring B.Tech Electronics (ECE). Enquired for VLSI labs and IoT placements. Assigned to Vikram Joshi.'
+    id: 'L-1004',
+    name: 'Ankit Soni',
+    phone: '+91 98280 33001',
+    email: 'ankit.s@example.com',
+    course: 'B.Tech',
+    branch: 'Electronics Engineering (ECE)',
+    city: 'Alwar',
+    state: 'Rajasthan',
+    channel: 'Live Web Chat',
+    academic: '12th PCM · 80%',
+    status: 'Qualified',
+    counsellorId: 'C_ECE_1',
+    counsellorName: 'Vikram Joshi (B.Tech Electronic)',
+    created: '2026-10-07T11:15',
+    summary: 'Interested in VLSI design, semiconductor chips, and IoT labs.',
+    score: 74,
+    tier: 'Hot',
+    breakdown: [
+      { l: 'Name captured', g: 'Profile', p: 3 },
+      { l: 'Direct phone provided (No OTP)', g: 'Profile', p: 7 },
+      { l: 'Programme identified', g: 'Profile', p: 5 },
+      { l: 'Marks meet programme eligibility', g: 'Fit', p: 12 },
+      { l: 'From target region (Rajasthan)', g: 'Fit', p: 8 },
+      { l: 'Live Web Chat Lead Capture', g: 'Engagement', p: 15 }
+    ],
+    isReal: false
   },
   {
-    id: 'L-1005', name: 'Rahul Jangid', phone: '+91 97840 44001', email: 'rahul.j@mail.example', persona: 'Student', rel: 'Self', prog: 'P04', branch: 'Mechanical Engineering', city: 'Bikaner', state: 'Rajasthan', channel: 'Voice call', page: '—', utm: '—', academic: '12th PCM · RBSE · 78% · 2026',
-    sig: ['name', 'verified', 'programme', 'fees', 'marks', 'timeline', 'eligible', 'region'], adj: [], dq: null, status: 'CONTACTED', c: 'C_MECH_1', created: '2026-09-28T16:00', last: '2026-09-29T10:15', slaDue: null, contacted: true,
-    summary: 'PCM 78%, interested in B.Tech Mechanical (Automobile & EV). Counsellor Ajay Meena discussed workshop facilities and EV lab.'
-  },
-  {
-    id: 'L-1006', name: 'Sneha Agarwal', phone: '+91 98110 11004', email: 'sneha.ag@mail.example', persona: 'Student', rel: 'Self', prog: 'P07', branch: 'Management', city: 'New Delhi', state: 'Delhi', channel: 'Website', page: '/mba', utm: 'google_ads / mba_search', academic: 'B.Com · DU · 68% · CMAT 2026',
-    sig: ['name', 'verified', 'programme', 'fees', 'process', 'timeline', 'msgs6', 'eligible'], adj: [], dq: null, status: 'QUALIFIED', c: 'C3', created: '2026-09-30T16:40', last: '2026-09-30T16:58', slaDue: null, contacted: false,
-    summary: 'B.Com graduate (68%) with CMAT score, wants MBA 2026 batch. Assigned to Amit Joshi.'
-  },
-  {
-    id: 'L-1007', name: 'Ananya Choudhary', phone: '+91 99280 11006', email: 'ananya.c@mail.example', persona: 'Student', rel: 'Self', prog: 'P08', branch: 'Design & Arts', city: 'Udaipur', state: 'Rajasthan', channel: 'Website', page: '/design', utm: 'instagram / bdes_reel', academic: '12th Arts · RBSE · 79% · 2026',
-    sig: ['name', 'verified', 'programme', 'process', 'marks', 'visit', 'msgs6', 'booked', 'replied', 'eligible', 'region'], adj: [], dq: null, status: 'COUNSELLED', c: 'C4', created: '2026-09-26T20:30', last: '2026-09-29T15:40', slaDue: null, contacted: true,
-    summary: 'Arts 79%, interested in B.Des Interior. Counselling done 29 Sep with Ritu Saxena.'
+    id: 'L-1005',
+    name: 'Rahul Jangid',
+    phone: '+91 97840 44001',
+    email: 'rahul.j@example.com',
+    course: 'B.Tech',
+    branch: 'Mechanical Engineering',
+    city: 'Bikaner',
+    state: 'Rajasthan',
+    channel: 'Live Web Chat',
+    academic: '12th PCM · 78%',
+    status: 'Contacted',
+    counsellorId: 'C_MECH_1',
+    counsellorName: 'Ajay Meena (B.Tech Mechanical)',
+    created: '2026-10-05T09:20',
+    summary: 'PCM 78%, enquired for EV & Automobile lab facilities and campus placement.',
+    score: 68,
+    tier: 'Warm',
+    breakdown: [
+      { l: 'Name captured', g: 'Profile', p: 3 },
+      { l: 'Direct phone provided (No OTP)', g: 'Profile', p: 7 },
+      { l: 'Programme identified', g: 'Profile', p: 5 },
+      { l: 'Marks meet programme eligibility', g: 'Fit', p: 12 },
+      { l: 'From target region (Rajasthan)', g: 'Fit', p: 8 },
+      { l: 'Live Web Chat Lead Capture', g: 'Engagement', p: 15 }
+    ],
+    isReal: false
   }
 ];
 
 const BOOKINGS_DATA = [
-  { id: 'B-501', lead: 'L-1007', at: '2026-09-27T11:00', type: 'Online counselling', mode: 'Google Meet', c: 'C1', status: 'Completed' },
-  { id: 'B-502', lead: 'L-1006', at: '2026-09-29T15:00', type: 'Campus visit', mode: 'Admission Cell, Block A', c: 'C4', status: 'Completed' },
-  { id: 'B-503', lead: 'L-1011', at: '2026-09-30T15:00', type: 'Online counselling', mode: 'Google Meet', c: 'C2', status: 'No-show' },
-  { id: 'B-504', lead: 'L-1013', at: '2026-10-01T16:00', type: 'Online counselling', mode: 'Google Meet', c: 'C3', status: 'Confirmed' },
-  { id: 'B-505', lead: 'L-1001', at: '2026-10-03T11:00', type: 'Campus visit', mode: 'Admission Cell, Block A', c: 'C1', status: 'Confirmed' }
+  { id: 'B-501', leadName: 'Priya Sharma', at: '2026-10-14 11:00 AM', type: 'Online Counselling', mode: 'Google Meet', counsellor: 'Neha Mathur (CSE)', status: 'Confirmed' },
+  { id: 'B-502', leadName: 'Arjun Rathore', at: '2026-10-14 02:30 PM', type: 'Campus Visit', mode: 'Admission Cell, Block A', counsellor: 'Saurabh Gupta (CSE)', status: 'Confirmed' },
+  { id: 'B-503', leadName: 'Suresh Verma', at: '2026-10-15 11:30 AM', type: 'Lab Tour & Counselling', mode: 'Civil Engg Block', counsellor: 'Rajesh Sharma (Civil)', status: 'Confirmed' },
+  { id: 'B-504', leadName: 'Ankit Soni', at: '2026-10-15 03:00 PM', type: 'Online Counselling', mode: 'Google Meet', counsellor: 'Vikram Joshi (ECE)', status: 'Scheduled' },
+  { id: 'B-505', leadName: 'Rahul Jangid', at: '2026-10-16 10:00 AM', type: 'Campus Visit', mode: 'Mechanical Workshop', counsellor: 'Ajay Meena (Mech)', status: 'Confirmed' }
 ];
 
 const FOLLOWUPS_DATA = [
-  { id: 'F-9001', at: '2026-10-01T09:00', lead: 'L-1001', stage: 'Qualified, not booked', ch: 'WhatsApp', tpl: 'visit_offer_v1 – campus visit slots', status: 'Read · booked' },
-  { id: 'F-9002', at: '2026-10-01T09:00', lead: 'L-1012', stage: 'Lead captured', ch: 'WhatsApp', tpl: 'thanks_brochure_v1 – B.Tech fee sheet', status: 'Delivered' },
-  { id: 'F-9003', at: '2026-10-01T09:00', lead: 'L-1005', stage: 'Cold nurture', ch: 'WhatsApp', tpl: 'bca_placements_v1', status: 'Sent' },
-  { id: 'F-9005', at: '2026-10-01T15:00', lead: 'L-1013', stage: 'Booked', ch: 'WhatsApp', tpl: 'reminder_1h_v1 – Meet link', status: 'Scheduled' }
+  { id: 'F-9001', leadName: 'Priya Sharma', at: 'Today 09:00 AM', stage: 'Qualified, not booked', ch: 'WhatsApp', tpl: 'visit_offer_v1 – Campus visit slots', status: 'Read · booked' },
+  { id: 'F-9002', leadName: 'Arjun Rathore', at: 'Today 11:30 AM', stage: 'Lead captured', ch: 'WhatsApp', tpl: 'thanks_brochure_v1 – B.Tech fee sheet', status: 'Delivered' },
+  { id: 'F-9003', leadName: 'Suresh Verma', at: 'Today 02:00 PM', stage: 'Civil Enquiry', ch: 'WhatsApp', tpl: 'civil_labs_v1 – Structural labs guide', status: 'Sent' },
+  { id: 'F-9004', leadName: 'Ankit Soni', at: 'Tomorrow 10:00 AM', stage: 'ECE Enquiry', ch: 'WhatsApp', tpl: 'ece_placements_v1 – VLSI placements', status: 'Scheduled' }
 ];
 
 export default function LeadEnginePage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'chat' | 'bookings' | 'followups' | 'team' | 'settings' | 'data'>('overview');
-  const [role, setRole] = useState<'admin' | 'C1' | 'C3'>('admin');
-  const [tierFilter, setTierFilter] = useState<string>('All');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'leads' | 'chat' | 'overview' | 'counsellors' | 'bookings' | 'followups' | 'scoring'>('leads');
+  const [leads, setLeads] = useState<LeadItem[]>([]);
+  const [isSample, setIsSample] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [tierFilter, setTierFilter] = useState<'All' | 'Hot' | 'Warm' | 'Cold' | 'Real'>('All');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [backendConnected, setBackendConnected] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<LeadItem | null>(null);
 
-  // Dynamic leads list in state
-  const [leadsList, setLeadsList] = useState<LeadItem[]>(() => {
-    return INITIAL_DEMO_LEADS.map(l => {
-      const breakdown = [
-        ...l.sig.map(k => ({ l: W[k]?.l || k, g: W[k]?.g || 'Other', p: W[k]?.p || 0 })),
-        ...l.adj.map(a => ({ l: a.l, g: 'Adjustment', p: a.p }))
-      ];
-      const score = Math.max(0, Math.min(100, breakdown.reduce((s, b) => s + b.p, 0)));
-      const tier: 'Hot' | 'Warm' | 'Cold' | 'DQ' = l.dq ? 'DQ' : score >= 70 ? 'Hot' : score >= 40 ? 'Warm' : 'Cold';
-      return { ...l, breakdown, score, tier, isReal: false };
-    });
-  });
-
-  // Chat & Direct Lead Capture State (NO OTP)
-  // Dynamic In-Session Lead & Memory Tracking (Course, Branch, Marks, Mobile)
-  const [sessionLead, setSessionLead] = useState<{
-    marks?: string;
-    course?: string;
-    branch?: string;
-    name?: string;
-    phone?: string;
-    score?: number;
-    tier?: string;
-    assignedCounsellor?: string;
-  }>({});
-
+  // Counsellors branch filter
   const [counsellorBranchFilter, setCounsellorBranchFilter] = useState<'all' | 'CSE' | 'Civil' | 'Electronic' | 'Mechanical'>('all');
 
+  // AI Chat & In-Session Memory Tracking
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; text: string; sources?: any[]; leadInfo?: any }>>([
     {
       id: 'm-init',
@@ -233,15 +315,24 @@ export default function LeadEnginePage() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [sessionLead, setSessionLead] = useState<{
+    marks?: string;
+    course?: string;
+    branch?: string;
+    name?: string;
+    phone?: string;
+    assignedCounsellor?: string;
+  }>({});
 
-  // Quick Direct Contact Form (NO OTP)
+  // Direct Lead Modal Form
+  const [isDirectLeadModalOpen, setIsDirectLeadModalOpen] = useState(false);
   const [directName, setDirectName] = useState('');
   const [directPhone, setDirectPhone] = useState('');
   const [directCourse, setDirectCourse] = useState('B.Tech');
   const [directBranch, setDirectBranch] = useState('Computer Science (CSE)');
   const [directCity, setDirectCity] = useState('Jaipur');
-  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
-  const [captureSuccess, setCaptureSuccess] = useState<{ name: string; phone: string; score: number; tier: string; counsellor: string } | null>(null);
+  const [directAcademic, setDirectAcademic] = useState('12th PCM · 75%');
+  const [isSubmittingDirect, setIsSubmittingDirect] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -249,107 +340,152 @@ export default function LeadEnginePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, chatLoading]);
 
-  // Load real saved leads from database on mount
+  // Load leads on mount
   useEffect(() => {
-    loadDatabaseLeads();
+    loadLeads();
   }, []);
 
-  const loadDatabaseLeads = async () => {
+  const loadLeads = async () => {
+    setIsSyncing(true);
     try {
-      const data = await api.getLeadEngineLeads('proj_poornima');
-      if (data && data.leads && data.leads.length > 0) {
-        const realItems: LeadItem[] = data.leads.map((dl: any) => {
-          let assignedCId = 'C_CSE_1';
-          let progId = 'P01';
-          const brLower = (dl.branch || dl.course || '').toLowerCase();
-          if (brLower.includes('civil')) { assignedCId = 'C_CIV_1'; progId = 'P02'; }
-          else if (brLower.includes('electronic') || brLower.includes('ece')) { assignedCId = 'C_ECE_1'; progId = 'P03'; }
-          else if (brLower.includes('mechanical')) { assignedCId = 'C_MECH_1'; progId = 'P04'; }
-          else if (brLower.includes('mba') || brLower.includes('bba')) { assignedCId = 'C3'; progId = 'P07'; }
-          else if (brLower.includes('design')) { assignedCId = 'C4'; progId = 'P08'; }
+      const res = await api.getLeadEngineLeads('proj_poornima');
+      if (res && Array.isArray(res.leads) && res.leads.length > 0) {
+        const mapped: LeadItem[] = res.leads.map((l: any) => {
+          const br = l.branch || (l.course?.includes('B.Tech') ? 'Computer Science (CSE)' : l.course) || 'Computer Science (CSE)';
+          let cId = 'C_CSE_1';
+          let cName = 'Neha Mathur (B.Tech CSE)';
+          const brLower = br.toLowerCase();
+          if (brLower.includes('civil')) { cId = 'C_CIV_1'; cName = 'Rajesh Sharma (B.Tech Civil)'; }
+          else if (brLower.includes('electronic') || brLower.includes('ece')) { cId = 'C_ECE_1'; cName = 'Vikram Joshi (B.Tech Electronic)'; }
+          else if (brLower.includes('mechanical') || brLower.includes('mech')) { cId = 'C_MECH_1'; cName = 'Ajay Meena (B.Tech Mechanical)'; }
+
+          const leadScore = typeof l.score === 'number' ? l.score : 70;
+          const leadTier: 'Hot' | 'Warm' | 'Cold' = leadScore >= 70 ? 'Hot' : (leadScore >= 40 ? 'Warm' : 'Cold');
 
           return {
-            id: dl.id,
-            name: dl.name,
-            phone: dl.phone,
-            email: dl.email || '',
-            persona: 'Student',
-            rel: 'Self',
-            prog: progId,
-            branch: dl.branch || (dl.course.includes('B.Tech') ? 'Computer Science (CSE)' : dl.course),
-            city: dl.city || 'Jaipur',
-            state: dl.state || 'Rajasthan',
-            channel: 'Live Web Chat',
-            page: '/lead-engine',
-            utm: 'live_admission_chat',
-            academic: '12th PCM · Direct Capture',
-            sig: ['name', 'verified', 'programme', 'fees', 'eligible', 'region'],
-            adj: [],
-            dq: null,
-            status: dl.status || 'QUALIFIED',
-            c: assignedCId,
-            created: dl.created_at,
-            last: dl.created_at,
-            slaDue: null,
-            contacted: false,
-            summary: dl.summary || `Live web enquiry for ${dl.course} (${dl.branch || 'Engineering'})`,
-            score: dl.score || 75,
-            tier: dl.tier || 'Hot',
+            id: l.id || 'L-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
+            name: l.name || 'Prospective Student',
+            phone: l.phone || '',
+            email: l.email || '',
+            course: l.course || 'B.Tech',
+            branch: br,
+            city: l.city || 'Jaipur',
+            state: l.state || 'Rajasthan',
+            channel: l.source === 'REAL_CHAT' || l.source === 'Live Web Chat' ? 'Live Web Chat' : 'Direct Entry',
+            academic: l.academic || '12th PCM · Direct Capture',
+            status: (l.status === 'QUALIFIED' ? 'Qualified' : (l.status === 'CONVERTED' ? 'Converted' : 'New')) as LeadItem['status'],
+            counsellorId: cId,
+            counsellorName: l.assigned_counsellor || cName,
+            created: l.created_at || new Date().toISOString(),
+            summary: l.summary || `Direct student enquiry for ${l.course || 'B.Tech'} (${br}).`,
+            score: leadScore,
+            tier: leadTier,
             breakdown: [
               { l: 'Name captured', g: 'Profile', p: 3 },
-              { l: 'Direct mobile number provided (No OTP)', g: 'Profile', p: 7 },
-              { l: 'Programme & Branch identified', g: 'Profile', p: 5 },
+              { l: 'Direct phone provided (No OTP)', g: 'Profile', p: 7 },
+              { l: 'Programme identified', g: 'Profile', p: 5 },
               { l: 'Asked fees / scholarship', g: 'Intent', p: 8 },
               { l: 'Requested counselor contact', g: 'Intent', p: 8 },
               { l: 'Live Web Chat Lead Capture', g: 'Engagement', p: 15 },
               { l: 'From target admission region', g: 'Fit', p: 20 }
             ],
-            isReal: true
+            isReal: l.source === 'REAL_CHAT' || l.source === 'Live Web Chat'
           };
         });
-
-        setLeadsList(prev => {
-          const existingIds = new Set(prev.map(p => p.id));
-          const uniqueNew = realItems.filter(r => !existingIds.has(r.id));
-          return [...uniqueNew, ...prev];
-        });
+        setLeads(mapped);
+        setIsSample(false);
+        setBackendConnected(true);
+        setIsSyncing(false);
+        return;
       }
-    } catch (err) {
-      console.error('Failed to load database leads:', err);
+    } catch (e) {
+      setBackendConnected(false);
+    }
+    // Fallback to sample leads if backend is empty
+    setLeads(SAMPLE_LEADS_DATA);
+    setIsSample(true);
+    setIsSyncing(false);
+  };
+
+  const loadSampleData = () => {
+    setLeads(SAMPLE_LEADS_DATA);
+    setIsSample(true);
+  };
+
+  const clearAllLeads = () => {
+    if (!leads.length) return;
+    if (window.confirm('Clear all leads from the active view?')) {
+      setLeads([]);
+      setIsSample(false);
     }
   };
 
-  const getProgName = (id: string | null) => PROGRAMMES.find(p => p.id === id)?.name || id || '—';
-  const getCounsellorName = (id: string | null) => COUNSELLORS.find(c => c.id === id)?.name || id || '—';
-  const getLead = (id: string) => leadsList.find(l => l.id === id);
+  const updateLeadStatus = (id: string, newStatus: LeadItem['status']) => {
+    setLeads(prev => prev.map(l => l.id === id ? { ...l, status: newStatus } : l));
+  };
 
-  const formatDateTime = (dateStr: string) => {
+  const deleteLead = (id: string) => {
+    setLeads(prev => prev.filter(l => l.id !== id));
+  };
+
+  // Direct Lead Modal Submit
+  const handleDirectLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directPhone.trim()) return;
+    setIsSubmittingDirect(true);
+
     try {
-      return new Date(dateStr).toLocaleString('en-IN', {
-        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true
+      const res = await api.captureLead({
+        name: directName.trim() || 'Prospective Student',
+        phone: directPhone.trim(),
+        course: directCourse,
+        branch: directBranch,
+        city: directCity,
+        academic: directAcademic,
+        chat_summary: `Direct Quick Capture: ${directName || 'Student'} (${directPhone}) enquired for ${directCourse} - ${directBranch} from ${directCity}.`,
+        project_id: 'proj_poornima'
       });
-    } catch {
-      return dateStr;
+
+      const newLead: LeadItem = {
+        id: res.id,
+        name: res.name,
+        phone: res.phone,
+        email: res.email || '',
+        course: res.course,
+        branch: res.branch || directBranch,
+        city: res.city,
+        state: res.state,
+        channel: 'Direct Entry',
+        academic: directAcademic,
+        status: 'Qualified',
+        counsellorName: res.assigned_counsellor,
+        created: res.created_at,
+        summary: res.summary,
+        score: res.score,
+        tier: res.tier as any,
+        breakdown: [
+          { l: 'Name captured', g: 'Profile', p: 3 },
+          { l: 'Direct phone provided (No OTP)', g: 'Profile', p: 7 },
+          { l: 'Programme identified', g: 'Profile', p: 5 },
+          { l: 'Asked fees / scholarship', g: 'Intent', p: 8 },
+          { l: 'Direct Lead Capture Conversion', g: 'Engagement', p: 10 },
+          { l: 'From target admission region', g: 'Fit', p: 8 }
+        ],
+        isReal: true
+      };
+
+      setLeads(prev => [newLead, ...prev]);
+      setIsDirectLeadModalOpen(false);
+      setDirectName('');
+      setDirectPhone('');
+    } catch (err: any) {
+      alert(`Could not capture lead: ${err?.message || 'Server error'}`);
+    } finally {
+      setIsSubmittingDirect(false);
     }
   };
 
-  const getTierTag = (tier?: string) => {
-    switch (tier) {
-      case 'Hot':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-orange-600 text-white shadow-xs">Hot</span>;
-      case 'Warm':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-600 text-white shadow-xs">Warm</span>;
-      case 'Cold':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-600 text-white shadow-xs">Cold</span>;
-      case 'DQ':
-      case 'Disqualified':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-slate-500 text-white shadow-xs">Disqualified</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-200 text-slate-700">{tier}</span>;
-    }
-  };
-
-  // Handle Send Chat message via Official College Web Search + Auto In-Chat Lead Capture
+  // AI Chat & In-Session Lead Extraction
   const handleSendChatMessage = async (overrideText?: string, e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const textToSend = (overrideText || chatInput).trim();
@@ -361,84 +497,43 @@ export default function LeadEnginePage() {
     setChatMessages(newChatHistory);
     setChatLoading(true);
 
-    // 1. In-Chat Lead Extraction & Session Memory Tracking (Course, Branch, Marks, Mobile)
+    // In-chat detection
     const rawClean = textToSend.replace(/\+91/g, '').replace(/[\s\-\(\)\.]/g, '');
     const phoneMatch = textToSend.match(/\b[6-9]\d{9}\b/) || rawClean.match(/[6-9]\d{9}/);
-    const pctMatch = textToSend.match(/(\b\d{1,2}(?:\.\d+)?\s*%)/) || textToSend.match(/(\b\d{2}\s*(?:percent|percentage|marks|pcm|grade)\b)/i);
-    
+    const pctMatch = textToSend.match(/(\b\d{1,2}(?:\.\d+)?\s*%)/) || textToSend.match(/(\b\d{2}\s*(?:percent|percentage|marks|pcm)\b)/i);
     const lowerText = textToSend.toLowerCase();
-    let detectedCourse = sessionLead.course;
+
+    let detectedCourse = sessionLead.course || 'B.Tech';
     let detectedBranch = sessionLead.branch;
 
-    // Detect specific B.Tech Engineering Branches (CSE, Civil, Electronic, Mechanical)
-    if (lowerText.includes('mechanical') || lowerText.includes('mech') || lowerText.includes('automobile') || lowerText.includes('मैकेनिकल')) {
-      detectedCourse = "B.Tech";
-      detectedBranch = "Mechanical Engineering";
-    } else if (lowerText.includes('civil') || lowerText.includes('सिविल')) {
-      detectedCourse = "B.Tech";
-      detectedBranch = "Civil Engineering";
-    } else if (lowerText.includes('electronic') || lowerText.includes('electronics') || lowerText.includes('ece') || lowerText.includes('electrical') || lowerText.includes('इलेक्ट्रॉनिक')) {
-      detectedCourse = "B.Tech";
-      detectedBranch = "Electronics Engineering (ECE)";
-    } else if (lowerText.includes('cse') || lowerText.includes('computer science') || lowerText.includes('btech cse') || lowerText.includes('ai & ds') || lowerText.includes('data science') || lowerText.includes('कम्प्यूटर')) {
-      detectedCourse = "B.Tech";
-      detectedBranch = "Computer Science (CSE)";
-    } else if (lowerText.includes('b.tech') || lowerText.includes('btech') || lowerText.includes('engineering') || lowerText.includes('बी.टेक')) {
-      detectedCourse = "B.Tech";
-    } else if (lowerText.includes('mba')) {
-      detectedCourse = "MBA";
-      detectedBranch = "Management";
-    } else if (lowerText.includes('bca')) {
-      detectedCourse = "BCA";
-      detectedBranch = "Computer Applications";
-    } else if (lowerText.includes('bba')) {
-      detectedCourse = "BBA";
-      detectedBranch = "Business Administration";
-    } else if (lowerText.includes('design') || lowerText.includes('b.des')) {
-      detectedCourse = "B.Des";
-      detectedBranch = "Design & Arts";
+    if (lowerText.includes('mechanical') || lowerText.includes('mech')) {
+      detectedBranch = 'Mechanical Engineering';
+    } else if (lowerText.includes('civil')) {
+      detectedBranch = 'Civil Engineering';
+    } else if (lowerText.includes('electronic') || lowerText.includes('ece')) {
+      detectedBranch = 'Electronics Engineering (ECE)';
+    } else if (lowerText.includes('cse') || lowerText.includes('computer science') || lowerText.includes('data science') || lowerText.includes('ai')) {
+      detectedBranch = 'Computer Science (CSE)';
     }
 
     let detectedName = sessionLead.name;
     const nameMatch = textToSend.match(/\b(?:my name is|mera nam|mera name|naam|name is|i am)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\b/i);
     if (nameMatch) {
       const candidate = nameMatch[1].trim();
-      if (!['interested', 'looking', 'asking', 'student', 'btech', 'mba', 'bca', 'civil', 'mechanical'].includes(candidate.toLowerCase())) {
+      if (!['interested', 'looking', 'asking', 'student', 'btech', 'civil', 'mechanical'].includes(candidate.toLowerCase())) {
         detectedName = candidate.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       }
     }
 
-    // Assign dedicated Counsellor according to branch (5 Demo Counsellors each)
-    let assignedCounsellorId = 'C_CSE_1';
     let assignedCounsellorName = 'Neha Mathur (B.Tech CSE)';
-    let progId = 'P01';
-
-    if (detectedBranch === 'Civil Engineering') {
-      assignedCounsellorId = 'C_CIV_1';
-      assignedCounsellorName = 'Rajesh Sharma (B.Tech Civil)';
-      progId = 'P02';
-    } else if (detectedBranch === 'Electronics Engineering (ECE)') {
-      assignedCounsellorId = 'C_ECE_1';
-      assignedCounsellorName = 'Vikram Joshi (B.Tech Electronic)';
-      progId = 'P03';
-    } else if (detectedBranch === 'Mechanical Engineering') {
-      assignedCounsellorId = 'C_MECH_1';
-      assignedCounsellorName = 'Ajay Meena (B.Tech Mechanical)';
-      progId = 'P04';
-    } else if (detectedCourse === 'MBA' || detectedCourse === 'BBA') {
-      assignedCounsellorId = 'C3';
-      assignedCounsellorName = 'Amit Joshi (Management & Commerce)';
-      progId = 'P07';
-    } else if (detectedCourse === 'B.Des') {
-      assignedCounsellorId = 'C4';
-      assignedCounsellorName = 'Ritu Saxena (Design & Arts)';
-      progId = 'P08';
-    }
+    if (detectedBranch === 'Civil Engineering') assignedCounsellorName = 'Rajesh Sharma (B.Tech Civil)';
+    else if (detectedBranch === 'Electronics Engineering (ECE)') assignedCounsellorName = 'Vikram Joshi (B.Tech Electronic)';
+    else if (detectedBranch === 'Mechanical Engineering') assignedCounsellorName = 'Ajay Meena (B.Tech Mechanical)';
 
     const updatedProfile = {
       ...sessionLead,
       marks: pctMatch ? pctMatch[0].trim() : sessionLead.marks,
-      course: detectedCourse || sessionLead.course,
+      course: detectedCourse,
       branch: detectedBranch || sessionLead.branch,
       name: detectedName || sessionLead.name,
       phone: phoneMatch ? phoneMatch[0] : sessionLead.phone,
@@ -450,49 +545,37 @@ export default function LeadEnginePage() {
 
     if (phoneMatch) {
       const capturedPhone = phoneMatch[0];
-      const leadName = updatedProfile.name || detectedName || sessionLead.name || "Prospective Student";
-      const leadCourse = updatedProfile.course || detectedCourse || sessionLead.course || "B.Tech";
-      const leadBranch = updatedProfile.branch || detectedBranch || sessionLead.branch || "Mechanical Engineering";
+      const leadName = updatedProfile.name || 'Prospective Student';
+      const leadBranch = updatedProfile.branch || 'Computer Science (CSE)';
 
       try {
         const captureRes = await api.captureLead({
           name: leadName,
           phone: capturedPhone,
-          course: leadCourse,
+          course: detectedCourse,
           branch: leadBranch,
           academic: updatedProfile.marks ? `12th ${updatedProfile.marks}` : '12th PCM',
-          city: "Jaipur",
-          chat_summary: `Direct In-Chat Lead: ${leadName} (${capturedPhone}) enquired for ${leadCourse} - ${leadBranch}. Marks: ${updatedProfile.marks || 'Not shared'}. Assigned to ${assignedCounsellorName}.`,
+          city: 'Jaipur',
+          chat_summary: `Direct In-Chat Lead: ${leadName} (${capturedPhone}) enquired for ${detectedCourse} - ${leadBranch}. Assigned to ${assignedCounsellorName}.`,
           project_id: 'proj_poornima'
         });
 
         autoCapturedLead = captureRes;
 
-        // Add to main Leads Master list
         const newLeadItem: LeadItem = {
           id: captureRes.id,
           name: captureRes.name,
           phone: captureRes.phone,
           email: captureRes.email || '',
-          persona: 'Student',
-          rel: 'Self',
-          prog: progId,
+          course: captureRes.course,
           branch: leadBranch,
           city: captureRes.city,
           state: captureRes.state,
           channel: 'Live Web Chat',
-          page: '/lead-engine',
-          utm: 'in_chat_auto_capture',
           academic: updatedProfile.marks ? `12th Marks: ${updatedProfile.marks}` : '12th PCM · Direct In-Chat',
-          sig: ['name', 'verified', 'programme', 'fees', 'eligible', 'region'],
-          adj: [],
-          dq: null,
-          status: 'QUALIFIED',
-          c: assignedCounsellorId,
+          status: 'Qualified',
+          counsellorName: assignedCounsellorName,
           created: captureRes.created_at,
-          last: captureRes.created_at,
-          slaDue: null,
-          contacted: false,
           summary: captureRes.summary,
           score: captureRes.score,
           tier: captureRes.tier as any,
@@ -507,20 +590,18 @@ export default function LeadEnginePage() {
           isReal: true
         };
 
-        setLeadsList(prev => [newLeadItem, ...prev]);
+        setLeads(prev => [newLeadItem, ...prev]);
       } catch (err) {
         console.error('In-chat lead capture failed:', err);
       }
     }
 
     try {
-      // 2. Call dedicated Lead Generator Chat API
       const historyFormatted = chatMessages
         .filter(m => m.id !== 'm-init')
         .map(m => ({ role: m.role, content: m.text }));
 
       const res = await api.chatLeadEngine('proj_poornima', textToSend, historyFormatted);
-      
       setChatMessages(prev => [
         ...prev,
         {
@@ -531,15 +612,13 @@ export default function LeadEnginePage() {
           leadInfo: autoCapturedLead
         }
       ]);
-    } catch (err: any) {
-      console.error('Chat error:', err);
-      const fallbackText = "B.Tech tuition fee at Poornima University is approximately ₹1.21 Lakhs - ₹1.65 Lakhs per year. Merit scholarships up to 80% are available based on 12th PCM / CUET marks. Hostels are available on campus.";
+    } catch (err) {
       setChatMessages(prev => [
         ...prev,
         {
           id: `bot_${Date.now()}`,
           role: 'assistant',
-          text: fallbackText,
+          text: 'B.Tech tuition fee at Poornima University is approximately ₹1.21 Lakhs – ₹1.65 Lakhs per year. Merit scholarships up to 80% are available based on 12th PCM / CUET marks. Official fee sheet is available.',
           leadInfo: autoCapturedLead
         }
       ]);
@@ -548,1359 +627,1283 @@ export default function LeadEnginePage() {
     }
   };
 
-  // Filter leads based on role, tier, and search query
-  const visibleLeads = leadsList.filter(l => role === 'admin' || l.c === role);
-  const filteredLeads = visibleLeads.filter(l => {
-    const matchesTier = tierFilter === 'All' || l.tier === tierFilter;
-    const matchesSearch = !searchQuery ||
-      l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.phone.includes(searchQuery) ||
-      getProgName(l.prog).toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.city.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTier && matchesSearch;
-  }).sort((a, b) => {
-    // Put Real Live Chat leads at the very top
-    if (a.isReal && !b.isReal) return -1;
-    if (!a.isReal && b.isReal) return 1;
-    const order: Record<string, number> = { Hot: 0, Warm: 1, Cold: 2, DQ: 3 };
-    return (order[a.tier || 'Cold'] - order[b.tier || 'Cold']) || ((b.score || 0) - (a.score || 0));
+  const exportCsv = () => {
+    if (!leads.length) return;
+    const head = ['Lead ID', 'Name', 'Email', 'Phone', 'Course', 'Branch', 'City', 'Score', 'Tier', 'Status', 'Assigned Counsellor', 'Captured Date'];
+    const rows = leads.map(l => [
+      l.id,
+      l.name,
+      l.email,
+      l.phone,
+      l.course,
+      l.branch,
+      l.city,
+      l.score,
+      l.tier,
+      l.status,
+      l.counsellorName || '',
+      l.created
+    ]);
+    const csv = [head, ...rows]
+      .map(r => r.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `omniagent-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const scoreColor = (s: number) => {
+    return s >= 75 ? 'var(--success)' : s >= 60 ? 'var(--amber)' : 'var(--text-3)';
+  };
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch {
+      return '—';
+    }
+  };
+
+  const filteredLeads = leads.filter(l => {
+    const matchesStatus = !statusFilter || l.status === statusFilter;
+    const matchesTier = tierFilter === 'All'
+      ? true
+      : tierFilter === 'Real'
+      ? l.isReal
+      : l.tier === tierFilter;
+
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !q || (
+      l.name.toLowerCase().includes(q) ||
+      l.email.toLowerCase().includes(q) ||
+      l.phone.toLowerCase().includes(q) ||
+      l.branch.toLowerCase().includes(q) ||
+      l.city.toLowerCase().includes(q)
+    );
+    return matchesStatus && matchesTier && matchesSearch;
   });
 
-  const openLeads = visibleLeads.filter(l => !['APPLIED', 'ENROLLED', 'LOST', 'DISQUALIFIED'].includes(l.status));
-  const hotLeadsCount = openLeads.filter(l => l.tier === 'Hot').length;
-  const qualLeadsCount = visibleLeads.filter(l => !['NEW', 'UNVERIFIED', 'DISQUALIFIED'].includes(l.status)).length;
-  const todayBookings = BOOKINGS_DATA.filter(b => b.at.startsWith('2026-10-01') && (role === 'admin' || b.c === role));
-  const appliedCount = visibleLeads.filter(l => ['APPLIED', 'ENROLLED'].includes(l.status)).length;
-
-  const callFirstList = openLeads
-    .filter(l => (l.tier === 'Hot' || l.tier === 'Warm') && !l.contacted && l.status !== 'BOOKED')
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
-
-  const selectedLead = selectedLeadId ? getLead(selectedLeadId) : null;
+  const totalCount = leads.length;
+  const newCount = leads.filter(l => l.status === 'New').length;
+  const qualifiedCount = leads.filter(l => l.status === 'Qualified').length;
+  const convertedCount = leads.filter(l => l.status === 'Converted').length;
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] flex flex-col md:flex-row text-[#1B2433] font-sans">
-      {/* SIDEBAR NAVIGATION (Brand: #0B2545) */}
-      <aside className="w-full md:w-64 bg-[#0B2545] text-[#D5DCE6] flex flex-col justify-between shrink-0 p-4 sm:p-5 border-r border-[#15345B]">
-        <div className="space-y-6">
-          {/* Brand */}
+    <DashboardShell activeNav="lead-engine">
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 flex-wrap">
           <div>
-            <div className="flex items-center gap-2 text-white font-extrabold text-lg tracking-tight">
-              <div className="w-8 h-8 rounded-xl bg-[#F2B54A] flex items-center justify-center text-[#0B2545] font-black shadow-md shadow-[#F2B54A]/20">
-                <Users className="w-4 h-4 text-[#0B2545]" />
-              </div>
-              <span>UniAI Lead Engine</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Lead Engine</h1>
+              <span className="badge badge-teal">
+                <Users className="w-3 h-3" /> CRM
+              </span>
+              {backendConnected && (
+                <span className="badge badge-emerald text-[11px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Live Backend Sync
+                </span>
+              )}
             </div>
-            <p className="text-xs text-[#F2B54A] font-semibold mt-1">Poornima University · Module 1</p>
-          </div>
-
-          {/* Navigation Items */}
-          <nav className="space-y-1">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'overview'
-                  ? 'bg-[#153866] text-white border-l-4 border-[#F2B54A] shadow-sm font-extrabold'
-                  : 'text-[#D5DCE6] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <BarChart2 className="w-4 h-4" /> Overview
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('leads')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'leads'
-                  ? 'bg-[#153866] text-white border-l-4 border-[#F2B54A] shadow-sm font-extrabold'
-                  : 'text-[#D5DCE6] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Users className="w-4 h-4" /> Leads Master (Table)
-              </span>
-              <span className="px-2 py-0.5 text-[11px] font-mono bg-[#071930] rounded-full text-[#F2B54A]">
-                {visibleLeads.length}
-              </span>
-            </button>
-
-            {/* LIVE WEB CHAT & DIRECT LEAD CAPTURE TAB */}
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'chat'
-                  ? 'bg-gradient-to-r from-[#F2B54A] to-[#E5A536] text-[#0B2545] shadow-md font-extrabold'
-                  : 'text-[#F2B54A] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4" /> AI Chat &amp; Capture
-              </span>
-              <span className="px-1.5 py-0.5 text-[10px] font-black uppercase rounded-md bg-[#0B2545] text-[#F2B54A]">
-                LIVE
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'bookings'
-                  ? 'bg-[#153866] text-white border-l-4 border-[#F2B54A] shadow-sm font-extrabold'
-                  : 'text-[#D5DCE6] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Calendar className="w-4 h-4" /> Bookings
-              </span>
-              <span className="px-2 py-0.5 text-[11px] font-mono bg-[#071930] rounded-full text-[#F2B54A]">
-                {BOOKINGS_DATA.filter(b => role === 'admin' || b.c === role).length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('followups')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'followups'
-                  ? 'bg-[#153866] text-white border-l-4 border-[#F2B54A] shadow-sm font-extrabold'
-                  : 'text-[#D5DCE6] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Clock className="w-4 h-4" /> Follow-up Queue
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('team')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'team'
-                  ? 'bg-[#153866] text-white border-l-4 border-[#F2B54A] shadow-sm font-extrabold'
-                  : 'text-[#D5DCE6] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <UserCheck className="w-4 h-4" /> Counsellors
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'settings'
-                  ? 'bg-[#153866] text-white border-l-4 border-[#F2B54A] shadow-sm font-extrabold'
-                  : 'text-[#D5DCE6] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Sliders className="w-4 h-4" /> Scoring Settings
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('data')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'data'
-                  ? 'bg-[#153866] text-white border-l-4 border-[#F2B54A] shadow-sm font-extrabold'
-                  : 'text-[#D5DCE6] hover:bg-[#153866] hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <FileText className="w-4 h-4" /> Data Spec
-              </span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Footer info */}
-        <div className="pt-6 border-t border-[#15345B] text-[11px] text-[#A1ADBC] space-y-1">
-          <p className="font-semibold text-white">MaxBrain UniAI Platform</p>
-          <p>Theme: Navy · SQLite DB</p>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT AREA (Background: #F4F6F9) */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto bg-[#F4F6F9]">
-        {/* TOP BAR: Title & Role Switcher */}
-        <header className="bg-white border-b border-[#E3E8EF] px-6 py-4 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-20 shadow-xs">
-          <div>
-            <h1 className="text-xl font-extrabold text-[#1B2433] tracking-tight capitalize">
-              {activeTab === 'overview' && 'Executive Admission Overview'}
-              {activeTab === 'leads' && 'Leads Master Table (Live CRM Database)'}
-              {activeTab === 'chat' && 'AI Admission Web Chat & Direct Lead Capture'}
-              {activeTab === 'bookings' && 'Counselling & Campus Visit Bookings'}
-              {activeTab === 'followups' && 'Automated Multi-Channel Follow-up Cadence'}
-              {activeTab === 'team' && 'Counsellor Performance & Capacity'}
-              {activeTab === 'settings' && '100-Point Scoring Engine & Rules Config'}
-              {activeTab === 'data' && 'Technical Specification & Dataset'}
-            </h1>
-            <p className="text-xs text-[#5A6578] mt-0.5">
-              Domain-grounded web search data &bull; Direct 10-digit phone save (No OTP)
+            <p className="text-sm t3 mt-1">
+              Every lead your assistants capture — tracked, scored and exportable.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <label className="text-xs font-bold text-[#3A4556]">View as Role:</label>
-            <select
-              value={role}
-              onChange={(e) => {
-                setRole(e.target.value as any);
-                setTierFilter('All');
-              }}
-              className="bg-[#F7F9FB] border border-[#D5DCE6] text-xs font-bold text-[#1B2433] rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#0B2545] cursor-pointer shadow-xs"
+          <div className="flex gap-2 flex-wrap items-center">
+            <button
+              type="button"
+              onClick={() => setIsDirectLeadModalOpen(true)}
+              className="btn btn-secondary btn-sm"
+              title="Add a lead manually without OTP"
             >
-              <option value="admin">🏛️ Admission Head (Admin View)</option>
-              <option value="C1">👩‍💼 Counsellor – Neha Mathur (Engineering)</option>
-              <option value="C3">👨‍💼 Counsellor – Amit Joshi (Management)</option>
-            </select>
+              <Plus className="w-3.5 h-3.5" /> Direct Capture
+            </button>
+            <button
+              type="button"
+              onClick={loadLeads}
+              disabled={isSyncing}
+              className="btn btn-secondary btn-sm"
+              title="Sync leads from FastAPI backend"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
+              {isSyncing ? 'Syncing…' : 'Sync backend'}
+            </button>
+            <button
+              type="button"
+              onClick={loadSampleData}
+              className="btn btn-secondary btn-sm"
+            >
+              <Database className="w-3.5 h-3.5" /> Load sample data
+            </button>
+            <button
+              type="button"
+              onClick={clearAllLeads}
+              className="btn btn-danger btn-sm"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Clear all
+            </button>
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="btn btn-primary btn-sm"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
           </div>
-        </header>
+        </div>
 
-        {/* VIEW CONTENTS */}
-        <main className="p-6 space-y-6 max-w-7xl">
-          {/* TAB: LIVE WEB SEARCH CHAT & DIRECT CONVERSATIONAL LEAD CAPTURE */}
-          {activeTab === 'chat' && (
-            <div className="max-w-4xl mx-auto w-full space-y-4">
-              {/* Feature Highlights Banner */}
-              <div className="p-4 bg-[#0B2545] text-white rounded-3xl border border-[#16365C] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#F2B54A]/20 border border-[#F2B54A]/40 flex items-center justify-center text-[#F2B54A] shrink-0">
-                    <Sparkles className="w-5 h-5" />
+        {/* 4 Primary Metric Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="card p-4">
+            <p className="text-[11px] t3 font-bold uppercase tracking-wide">Total leads</p>
+            <p className="text-2xl font-extrabold mt-1">{totalCount}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-[11px] t3 font-bold uppercase tracking-wide">New</p>
+            <p className="text-2xl font-extrabold mt-1">{newCount}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-[11px] t3 font-bold uppercase tracking-wide">Qualified</p>
+            <p className="text-2xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">{qualifiedCount}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-[11px] t3 font-bold uppercase tracking-wide">Converted</p>
+            <p className="text-2xl font-extrabold mt-1">{convertedCount}</p>
+          </div>
+        </div>
+
+        {/* Tabs Navigation Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b bd no-scrollbar text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('leads')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'leads'
+                ? 'bg-[var(--surface-3)] text-[var(--text-1)] font-bold shadow-xs'
+                : 't3 hover:text-[var(--text-1)]'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" /> Leads Master ({totalCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('chat')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'chat'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-xs'
+                : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" /> AI Chat &amp; Capture
+            <span className="px-1.5 py-0.2 rounded-md bg-white/20 text-[10px] font-extrabold">LIVE</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'overview'
+                ? 'bg-[var(--surface-3)] text-[var(--text-1)] font-bold shadow-xs'
+                : 't3 hover:text-[var(--text-1)]'
+            }`}
+          >
+            <BarChart2 className="w-3.5 h-3.5" /> Admission Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('counsellors')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'counsellors'
+                ? 'bg-[var(--surface-3)] text-[var(--text-1)] font-bold shadow-xs'
+                : 't3 hover:text-[var(--text-1)]'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" /> 4 Branches &amp; Counsellors ({COUNSELLORS.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('bookings')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'bookings'
+                ? 'bg-[var(--surface-3)] text-[var(--text-1)] font-bold shadow-xs'
+                : 't3 hover:text-[var(--text-1)]'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" /> Bookings ({BOOKINGS_DATA.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('followups')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'followups'
+                ? 'bg-[var(--surface-3)] text-[var(--text-1)] font-bold shadow-xs'
+                : 't3 hover:text-[var(--text-1)]'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" /> Follow-ups ({FOLLOWUPS_DATA.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('scoring')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'scoring'
+                ? 'bg-[var(--surface-3)] text-[var(--text-1)] font-bold shadow-xs'
+                : 't3 hover:text-[var(--text-1)]'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5" /> 100-Pt Scoring Rules
+          </button>
+        </div>
+
+        {/* TAB 1: LEADS MASTER TABLE */}
+        {activeTab === 'leads' && (
+          <div className="card overflow-hidden">
+            {/* Filter toolbar */}
+            <div className="p-4 border-b bd sf2 flex flex-col sm:flex-row gap-2 sm:items-center justify-between flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative w-full sm:w-64">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none t3">
+                    <Search className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="input !pl-9 !text-xs !py-1.5"
+                    placeholder="Search name, email, phone, city…"
+                    aria-label="Search leads"
+                  />
+                </div>
+
+                {/* Tier Filter Pills */}
+                <div className="flex items-center gap-1 sf3 p-1 rounded-xl border bd">
+                  {(['All', 'Hot', 'Warm', 'Cold', 'Real'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setTierFilter(t)}
+                      className={`px-2 py-0.5 rounded-lg text-xs font-semibold transition-all ${
+                        tierFilter === t
+                          ? 'bg-[var(--surface-1)] text-[var(--text-1)] font-bold shadow-xs'
+                          : 't3 hover:text-[var(--text-1)]'
+                      }`}
+                    >
+                      {t === 'Hot' ? '🔥 Hot' : t === 'Real' ? '🟢 Real Chat' : t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="select !w-auto !text-xs !py-1.5"
+                aria-label="Filter by status"
+              >
+                <option value="">All statuses</option>
+                <option value="New">New</option>
+                <option value="Qualified">Qualified</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Converted">Converted</option>
+              </select>
+            </div>
+
+            {/* Leads Table */}
+            <div className="overflow-x-auto">
+              <table className="leads-table">
+                <thead>
+                  <tr>
+                    <th>VISITOR</th>
+                    <th>CONTACT</th>
+                    <th>SOURCE</th>
+                    <th>SCORE</th>
+                    <th>STATUS</th>
+                    <th>CAPTURED</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.map((l) => (
+                    <tr
+                      key={l.id}
+                      onClick={() => setSelectedLead(l)}
+                      className="cursor-pointer hover:bg-[var(--surface-2)] transition-colors"
+                    >
+                      <td>
+                        <div className="flex items-center gap-2.5">
+                          <div className="avatar avatar-user !w-7 !h-7 !rounded-lg text-[10px] font-extrabold shrink-0">
+                            {(l.name || '?')
+                              .split(' ')
+                              .map(w => w[0])
+                              .join('')
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-semibold text-xs">{l.name}</p>
+                              {l.isReal && (
+                                <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-extrabold text-[9px] border border-emerald-300 dark:border-emerald-800">
+                                  LIVE
+                                </span>
+                              )}
+                              {l.tier === 'Hot' && (
+                                <span className="text-[10px]" title="Hot Priority">🔥</span>
+                              )}
+                            </div>
+                            <p className="text-[10px] t3 truncate max-w-[200px]">
+                              {l.course} ({l.branch}) · {l.city}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <p className="text-xs truncate max-w-[160px]">{l.email || '—'}</p>
+                        <p className="text-[10px] t3 font-mono">{l.phone || '—'}</p>
+                      </td>
+                      <td className="t3 text-xs">{l.channel || 'Live Web Chat'}</td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div className="score-bar">
+                            <span
+                              style={{
+                                width: `${l.score || 0}%`,
+                                background: scoreColor(l.score || 0)
+                              }}
+                            ></span>
+                          </div>
+                          <span className="text-xs font-bold font-mono">{l.score || 0}</span>
+                        </div>
+                      </td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={l.status}
+                          onChange={(e) => updateLeadStatus(l.id, e.target.value as any)}
+                          className="select !w-auto !py-1 !px-2 !text-xs cursor-pointer"
+                          aria-label={`Status for ${l.name}`}
+                        >
+                          <option value="New">New</option>
+                          <option value="Qualified">Qualified</option>
+                          <option value="Contacted">Contacted</option>
+                          <option value="Converted">Converted</option>
+                        </select>
+                      </td>
+                      <td className="t3 text-xs whitespace-nowrap">{formatDate(l.created)}</td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLead(l)}
+                            className="p-1.5 rounded-lg hover:bg-[var(--surface-3)] text-blue-600 dark:text-blue-400"
+                            title="Inspect Lead Details"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteLead(l.id)}
+                            className="p-1.5 rounded-lg hover:bg-[var(--surface-3)] t3 hover:text-[var(--danger)]"
+                            aria-label={`Delete lead ${l.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredLeads.length === 0 && (
+              <div className="p-12 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl sf3 flex items-center justify-center mx-auto">
+                  <Users className="w-6 h-6 t3" />
+                </div>
+                <p className="font-bold text-sm">No leads found</p>
+                <p className="text-xs t3 max-w-sm mx-auto">
+                  Try clearing the search query or load sample leads to preview.
+                </p>
+                <button
+                  type="button"
+                  onClick={loadSampleData}
+                  className="btn btn-secondary btn-sm mx-auto"
+                >
+                  <Database className="w-3.5 h-3.5" /> Load sample data
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: AI CHAT & IN-SESSION LEAD CAPTURE */}
+        {activeTab === 'chat' && (
+          <div className="grid lg:grid-cols-12 gap-5">
+            {/* Left: Chat Window */}
+            <div className="lg:col-span-8 card flex flex-col h-[650px] overflow-hidden">
+              {/* Chat Top Banner */}
+              <div className="p-3.5 border-b bd sf2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                    <Bot className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                      Conversational Lead Capture Active
-                      <span className="px-2 py-0.5 rounded-full bg-[#F2B54A] text-[#0B2545] text-[10px] font-mono font-black">
-                        100% In-Chat · No OTP
-                      </span>
-                    </h3>
-                    <p className="text-[#D5DCE6] text-[11px] mt-0.5">
-                      Type your question with your name &amp; 10-digit number. The AI directly answers from official <code>poornima.org</code> data and automatically saves the scored lead to the database.
-                    </p>
+                    <h3 className="text-xs font-bold leading-none">Poornima Admission Web Search AI</h3>
+                    <p className="text-[10px] t3 mt-0.5">Live Official Website Grounding · Direct System Database Capture</p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('leads')}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#F2B54A] hover:bg-[#E5A536] text-[#0B2545] font-extrabold text-xs shrink-0 flex items-center gap-1.5 transition-all shadow-sm"
+                  onClick={() => setChatMessages([chatMessages[0]])}
+                  className="btn btn-secondary btn-sm !py-1 !text-[11px]"
                 >
-                  <Users className="w-3.5 h-3.5 text-[#0B2545]" />
-                  <span>View Leads Master</span>
+                  Clear Chat
                 </button>
               </div>
 
-              {/* Chat Container */}
-              <div className="bg-white rounded-3xl border border-[#E3E8EF] shadow-md flex flex-col h-[640px] overflow-hidden">
-                {/* Chat Header (Brand: #0B2545) */}
-                <div className="p-4 bg-[#0B2545] text-white flex items-center justify-between border-b border-[#15345B]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#F2B54A] flex items-center justify-center text-[#0B2545] shadow-sm font-black">
-                      <Bot className="w-5 h-5 text-[#0B2545]" />
-                    </div>
-                    <div>
-                      <h2 className="text-xs font-extrabold text-white flex items-center gap-2">
-                        Poornima Admission Web Search AI
-                        <span className="w-2 h-2 rounded-full bg-[#4ADE9B] animate-pulse" />
-                      </h2>
-                      <p className="text-[10px] text-[#D5DCE6] font-medium">
-                        Live Official Website Grounding · Direct System Database Capture
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setChatMessages([chatMessages[0]])}
-                      className="px-2.5 py-1 rounded-lg bg-[#153866] hover:bg-[#1E4880] text-[11px] text-[#D5DCE6] font-bold transition-colors"
-                    >
-                      Clear Chat
-                    </button>
-                  </div>
-                </div>
-
-                {/* Active In-Session Lead Memory & State Tracker */}
-                <div className="px-4 py-2.5 bg-[#0B2545] border-b border-[#15345B] flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex flex-wrap items-center gap-2 text-[#D5DCE6] text-[11px]">
-                    <span className="font-extrabold text-white flex items-center gap-1.5">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#F2B54A]" />
-                      Session Memory:
-                    </span>
-                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 ${
-                      sessionLead.course
-                        ? 'bg-blue-400/20 text-blue-300 border border-blue-400/40 shadow-2xs'
-                        : 'bg-white/10 text-[#A1ADBC]'
-                    }`}>
-                      {sessionLead.course ? `✓ Course: ${sessionLead.course}` : 'Course: Exploring'}
-                    </span>
-                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 transition-all ${
-                      sessionLead.branch
-                        ? 'bg-[#4ADE9B]/20 text-[#4ADE9B] border border-[#4ADE9B]/40 shadow-2xs font-extrabold'
-                        : sessionLead.course === 'B.Tech'
-                        ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40 animate-pulse font-extrabold'
-                        : 'bg-white/10 text-[#A1ADBC]'
-                    }`}>
-                      {sessionLead.branch
-                        ? `✓ Branch: ${sessionLead.branch}`
-                        : sessionLead.course === 'B.Tech'
-                        ? '⚡ Branch: Pending (Choose CSE / Civil / ECE / Mech)'
-                        : 'Branch: Pending'}
-                    </span>
-                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 ${
-                      sessionLead.marks
-                        ? 'bg-[#4ADE9B]/20 text-[#4ADE9B] border border-[#4ADE9B]/40 shadow-2xs'
-                        : 'bg-white/10 text-[#A1ADBC]'
-                    }`}>
-                      {sessionLead.marks ? `✓ 12th Marks: ${sessionLead.marks}` : '12th Marks: Pending'}
-                    </span>
-                    <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 ${
-                      sessionLead.phone
-                        ? 'bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/40 shadow-2xs'
-                        : 'bg-white/10 text-[#A1ADBC]'
-                    }`}>
-                      {sessionLead.phone ? `✓ Mobile: ${sessionLead.phone}` : 'Mobile: Pending'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {sessionLead.assignedCounsellor && (
-                      <span className="text-[10px] font-extrabold text-[#F2B54A] bg-[#153866] px-2.5 py-0.5 rounded-full border border-[#F2B54A]/30 flex items-center gap-1">
-                        🎯 {sessionLead.assignedCounsellor}
-                      </span>
-                    )}
-                    {sessionLead.name && (
-                      <span className="text-[11px] font-extrabold text-[#F2B54A] bg-[#153866] px-2.5 py-0.5 rounded-lg border border-[#F2B54A]/30">
-                        👤 {sessionLead.name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Messages Feed (Background: #F4F6F9) */}
-                <div className="flex-1 p-5 overflow-y-auto space-y-4 bg-[#F4F6F9] text-sm">
-                  {chatMessages.map((m, mIdx) => (
-                    <div key={m.id} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} space-y-1`}>
-                      <div className="flex items-center gap-1.5 px-1">
-                        <span className="text-[11px] font-bold text-[#6B7586] uppercase tracking-wider">
-                          {m.role === 'user' ? 'Student' : 'Poornima Admission Desk'}
-                        </span>
-                      </div>
-                      <div className={`p-4 sm:p-5 rounded-2xl max-w-2xl leading-relaxed ${
-                        m.role === 'user'
-                          ? 'bg-[#0B2545] text-white rounded-br-sm shadow-sm'
-                          : 'bg-white border border-[#E3E8EF] text-[#1B2433] rounded-bl-sm shadow-xs'
-                      }`}>
-                        {m.role === 'user' ? (
-                          <p className="whitespace-pre-wrap font-medium text-white text-[14.5px] sm:text-[15px] leading-relaxed">{m.text}</p>
-                        ) : (
-                          <div className="space-y-3">
-                            <MarkdownContent content={m.text} isUser={false} />
-
-                            {/* In-Chat Auto Captured Lead Card (Shown only when lead is captured in CRM) */}
-                            {m.leadInfo && (
-                              <div className="mt-3.5 p-4 rounded-2xl bg-[#EAF7EF] border-2 border-[#4ADE9B] space-y-2.5 text-xs text-[#1B2433] shadow-sm animate-in fade-in">
-                                <div className="flex items-center justify-between border-b border-[#BDE5CE] pb-2">
-                                  <div className="flex items-center gap-1.5 font-black text-[#1E7E4E]">
-                                    <CheckCircle2 className="w-4 h-4 text-[#1E7E4E]" />
-                                    <span>Lead Captured in Admission CRM Database!</span>
-                                  </div>
-                                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#0B2545] text-[#F2B54A]">
-                                    {m.leadInfo.score}/100 · {m.leadInfo.tier} Lead 🔥
-                                  </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                                  <div>Student: <strong className="text-[#1B2433]">{m.leadInfo.name}</strong></div>
-                                  <div>Mobile: <strong className="font-mono text-[#1B2433]">{m.leadInfo.phone}</strong></div>
-                                  <div>Course &amp; Branch: <strong className="text-[#1B2433]">{m.leadInfo.branch || m.leadInfo.course || 'B.Tech CSE'}</strong></div>
-                                  <div>Assigned Counsellor: <strong className="text-[#0B2545]">{m.leadInfo.assigned_counsellor}</strong></div>
-                                </div>
-                                <div className="pt-1 flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedLeadId(m.leadInfo.id);
-                                      setActiveTab('leads');
-                                    }}
-                                    className="px-3 py-1.5 rounded-xl bg-[#0B2545] hover:bg-[#153866] text-white font-bold text-[11px] flex items-center gap-1 transition-all shadow-xs"
-                                  >
-                                    <span>Open in Leads Master</span>
-                                    <ArrowRight className="w-3 h-3" />
-                                  </button>
-                                  <a
-                                    href={`https://wa.me/91${m.leadInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${m.leadInfo.name}, thank you for contacting Poornima University Admissions. We have received your enquiry for ${m.leadInfo.course || 'B.Tech'}.`)}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20BA5A] text-white font-bold text-[11px] flex items-center gap-1 transition-all shadow-sm"
-                                  >
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                    <span>WhatsApp Counsellor</span>
-                                  </a>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Official Citations */}
-                            {m.sources && m.sources.length > 0 && (
-                              <div className="pt-2 border-t border-[#E3E8EF] flex flex-wrap gap-1.5">
-                                {m.sources.map((s: any, sIdx: number) => (
-                                  <a
-                                    key={sIdx}
-                                    href={s.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-2 py-0.5 rounded-md bg-[#F7F9FB] border border-[#D5DCE6] text-[#0B2545] text-[10px] font-bold flex items-center gap-1 hover:bg-white"
-                                  >
-                                    <span>{s.title || 'Official Source'}</span>
-                                    <ExternalLink className="w-2.5 h-2.5" />
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {chatLoading && (
-                    <div className="flex items-center gap-2 text-[#0B2545] font-bold text-xs bg-white border border-[#D5DCE6] p-3 rounded-2xl max-w-xs animate-pulse shadow-xs">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#F2B54A]" />
-                      <span>Searching official college website...</span>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Quick Test Prompt Chips */}
-                <div className="px-4 py-2.5 bg-[#F7F9FB] border-t border-[#E3E8EF] flex items-center gap-2 overflow-x-auto text-xs no-scrollbar">
-                  <span className="font-bold text-[#6B7586] shrink-0 flex items-center gap-1.5 text-xs">
-                    <Zap className="w-3.5 h-3.5 text-[#F2B54A]" /> Quick Options:
-                  </span>
-                  {(
-                    sessionLead.course === 'B.Tech' && !sessionLead.branch
-                      ? [
-                          "💻 B.Tech Computer Science (CSE)",
-                          "🏗️ B.Tech Civil Engineering",
-                          "⚡ B.Tech Electronics (ECE)",
-                          "⚙️ B.Tech Mechanical Engineering"
-                        ]
-                      : sessionLead.branch && !sessionLead.marks
-                      ? [
-                          `📊 My 12th is 75%, calculate my ${sessionLead.branch} scholarship`,
-                          `📊 My 12th is 60%, calculate my ${sessionLead.branch} scholarship`,
-                          `💰 2026 Fee Structure for ${sessionLead.branch}`,
-                          `👩‍💼 Connect with ${sessionLead.branch} Counsellor`
-                        ]
-                      : sessionLead.marks && !sessionLead.branch
-                      ? [
-                          "💻 B.Tech Computer Science (CSE)",
-                          "🏗️ B.Tech Civil Engineering",
-                          "⚡ B.Tech Electronics (ECE)",
-                          "⚙️ B.Tech Mechanical Engineering"
-                        ]
-                      : sessionLead.branch && sessionLead.marks && !sessionLead.phone
-                      ? [
-                          `📲 My number is 9829011001, connect with ${sessionLead.branch} counsellor`,
-                          `💰 Calculate exact fee after scholarship`,
-                          `👩‍💼 Assign Dedicated ${sessionLead.branch} Counsellor`,
-                          `🏛️ Schedule Campus Visit`
-                        ]
-                      : [
-                          "Which B.Tech engineering branches do you offer?",
-                          "💻 B.Tech Computer Science (CSE)",
-                          "🏗️ B.Tech Civil Engineering",
-                          "⚡ B.Tech Electronics (ECE)",
-                          "⚙️ B.Tech Mechanical Engineering"
-                        ]
-                  ).map((chip, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      disabled={chatLoading}
-                      onClick={() => handleSendChatMessage(chip)}
-                      className="px-3 py-1.5 rounded-full bg-white hover:bg-[#F2B54A]/10 border border-[#D5DCE6] hover:border-[#0B2545] text-[#1B2433] hover:text-[#0B2545] whitespace-nowrap font-semibold transition-all shrink-0 shadow-2xs text-xs"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Chat Input Bar */}
-                <form onSubmit={(e) => handleSendChatMessage(undefined, e)} className="p-3.5 bg-white border-t border-[#E3E8EF] flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Type your question or share your name & 10-digit number (e.g., 'I am Rohit, 9829011001')..."
-                    className="flex-1 px-4 py-2.5 bg-[#F7F9FB] border border-[#D5DCE6] rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#0B2545] text-[#1B2433]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!chatInput.trim() || chatLoading}
-                    className="px-5 py-2.5 bg-[#0B2545] hover:bg-[#153866] disabled:opacity-50 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all"
-                  >
-                    <span>Send</span>
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 1: OVERVIEW */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* 6 Key KPIs */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="text-2xl font-black text-slate-900">{visibleLeads.length}</div>
-                  <div className="text-xs font-bold text-slate-500 mt-1">Total Leads (7d)</div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="text-2xl font-black text-emerald-700">{qualLeadsCount}</div>
-                  <div className="text-xs font-bold text-slate-500 mt-1">Qualified Leads</div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-orange-200 bg-orange-50/50 shadow-xs">
-                  <div className="text-2xl font-black text-orange-600 flex items-center gap-1">
-                    <Flame className="w-5 h-5 fill-orange-600" /> {hotLeadsCount}
-                  </div>
-                  <div className="text-xs font-bold text-orange-900 mt-1">Open Hot Leads</div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="text-2xl font-black text-teal-700">{todayBookings.length}</div>
-                  <div className="text-xs font-bold text-slate-500 mt-1">Bookings Today</div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="text-2xl font-black text-slate-900">
-                    {visibleLeads.filter(l => l.isReal).length}
-                  </div>
-                  <div className="text-xs font-bold text-teal-700 mt-1">Live Chat Captures</div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-blue-200 bg-blue-50/40 shadow-xs">
-                  <div className="text-2xl font-black text-blue-700">{appliedCount}</div>
-                  <div className="text-xs font-bold text-blue-900 mt-1">Applications Won</div>
-                </div>
-              </div>
-
-              {/* Funnel & Breakdown */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Admission Funnel */}
-                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-extrabold text-slate-900">Admission Funnel (Last 7 Days)</h2>
-                    <span className="text-[11px] text-slate-500 font-semibold">Stage progression</span>
-                  </div>
-                  <div className="space-y-2.5">
-                    {[
-                      { name: 'Conversations', count: role === 'admin' ? visibleLeads.length + 12 : visibleLeads.length + 6 },
-                      { name: 'Leads Captured', count: visibleLeads.length },
-                      { name: 'Direct Phone Verified', count: visibleLeads.length },
-                      { name: 'Qualified (Score ≥ 40)', count: qualLeadsCount },
-                      { name: 'Booked Counselling / Visit', count: visibleLeads.filter(l => l.sig.includes('booked')).length },
-                      { name: 'Counselled', count: visibleLeads.filter(l => ['COUNSELLED', 'APPLIED', 'ENROLLED'].includes(l.status)).length },
-                      { name: 'Applied / Enrolled', count: appliedCount }
-                    ].map((st, idx) => {
-                      const maxVal = role === 'admin' ? visibleLeads.length + 12 : visibleLeads.length + 6;
-                      const pct = Math.max(4, Math.round((st.count / maxVal) * 100));
-                      return (
-                        <div key={idx} className="flex items-center gap-3 text-xs">
-                          <span className="w-36 font-bold text-slate-700 truncate">{st.name}</span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-4 overflow-hidden">
-                            <div className="bg-teal-600 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="font-mono font-bold text-slate-900 w-8 text-right">{st.count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Tier & Source Breakdown */}
-                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-5">
-                  <div>
-                    <h2 className="text-sm font-extrabold text-slate-900 mb-3">Leads by Tier</h2>
-                    <div className="space-y-2">
-                      {[
-                        { tier: 'Hot', count: visibleLeads.filter(l => l.tier === 'Hot').length, color: 'bg-orange-600' },
-                        { tier: 'Warm', count: visibleLeads.filter(l => l.tier === 'Warm').length, color: 'bg-amber-600' },
-                        { tier: 'Cold', count: visibleLeads.filter(l => l.tier === 'Cold').length, color: 'bg-blue-600' }
-                      ].map((tb, idx) => (
-                        <div key={idx} className="flex items-center gap-3 text-xs">
-                          <span className="w-28 font-bold text-slate-700">{tb.tier}</span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
-                            <div className={`${tb.color} h-full rounded-full`} style={{ width: `${(tb.count / visibleLeads.length) * 100}%` }} />
-                          </div>
-                          <span className="font-mono font-bold text-slate-900 w-6 text-right">{tb.count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100">
-                    <h2 className="text-sm font-extrabold text-slate-900 mb-3">Leads by Channel Source</h2>
-                    <div className="space-y-2">
-                      {['Live Web Chat', 'Website', 'WhatsApp', 'Voice call'].map((src, idx) => {
-                        const cnt = visibleLeads.filter(l => l.channel === src).length;
-                        return (
-                          <div key={idx} className="flex items-center gap-3 text-xs">
-                            <span className="w-28 font-bold text-slate-700">{src}</span>
-                            <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
-                              <div className="bg-teal-700 h-full rounded-full" style={{ width: `${(cnt / visibleLeads.length) * 100}%` }} />
-                            </div>
-                            <span className="font-mono font-bold text-slate-900 w-6 text-right">{cnt}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Call These First Queue */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                      <Flame className="w-4 h-4 text-orange-600 fill-orange-600" />
-                      <span>Call These First</span>
-                    </h2>
-                    <p className="text-xs text-slate-500">High priority Hot and Warm leads not yet contacted (Sorted by 100-pt score)</p>
-                  </div>
-                  <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200">
-                    {callFirstList.length} Actionable Leads
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200">
-                        <th className="p-3.5">Source</th>
-                        <th className="p-3.5">Tier</th>
-                        <th className="p-3.5">Score</th>
-                        <th className="p-3.5">Student / Contact</th>
-                        <th className="p-3.5">Programme Interest</th>
-                        <th className="p-3.5">AI Summary</th>
-                        <th className="p-3.5">Assigned Counsellor</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {callFirstList.map(lead => (
-                        <tr
-                          key={lead.id}
-                          onClick={() => setSelectedLeadId(lead.id)}
-                          className="hover:bg-teal-50/50 cursor-pointer transition-colors"
-                        >
-                          <td className="p-3.5">
-                            {lead.isReal ? (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-extrabold text-[10px] border border-emerald-300">
-                                🟢 REAL CHAT
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px]">
-                                DEMO
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3.5">{getTierTag(lead.tier)}</td>
-                          <td className="p-3.5 font-mono font-black text-slate-900 text-sm">{lead.score}</td>
-                          <td className="p-3.5">
-                            <div className="font-extrabold text-slate-900">{lead.name}</div>
-                            <div className="font-mono text-slate-500 text-[11px]">{lead.phone}</div>
-                          </td>
-                          <td className="p-3.5 font-semibold text-slate-800">{getProgName(lead.prog)}</td>
-                          <td className="p-3.5 text-slate-600 max-w-xs truncate">{lead.summary}</td>
-                          <td className="p-3.5 font-semibold text-slate-700">{getCounsellorName(lead.c)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: LEADS MASTER TABLE */}
-          {activeTab === 'leads' && (
-            <div className="space-y-4">
-              {/* Filter Chips & Search Bar */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+              {/* In-Session Memory Pill Bar */}
+              <div className="px-3.5 py-2 border-b bd sf3 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {['All', 'Hot', 'Warm', 'Cold'].map(t => {
-                    const count = t === 'All' ? visibleLeads.length : visibleLeads.filter(l => l.tier === t).length;
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => setTierFilter(t)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                          tierFilter === t
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        {t} ({count})
-                      </button>
-                    );
-                  })}
+                  <span className="font-bold t2 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-teal-600" /> Memory:
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                    sessionLead.course ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800' : 'sf t3'
+                  }`}>
+                    {sessionLead.course ? `✓ ${sessionLead.course}` : 'Course: Exploring'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                    sessionLead.branch ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold' : 'sf t3'
+                  }`}>
+                    {sessionLead.branch ? `✓ ${sessionLead.branch}` : 'Branch: Pending'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                    sessionLead.marks ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300' : 'sf t3'
+                  }`}>
+                    {sessionLead.marks ? `✓ 12th Marks: ${sessionLead.marks}` : '12th Marks: Pending'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                    sessionLead.phone ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-mono font-bold' : 'sf t3'
+                  }`}>
+                    {sessionLead.phone ? `✓ Mobile: ${sessionLead.phone}` : 'Mobile: Pending'}
+                  </span>
                 </div>
-
-                <div className="relative flex-1 sm:max-w-xs">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search name, phone, course, city..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
+                {sessionLead.assignedCounsellor && (
+                  <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300">
+                    🎯 {sessionLead.assignedCounsellor}
+                  </span>
+                )}
               </div>
 
-              {/* Leads Table */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200">
-                        <th className="p-3.5">Source Type</th>
-                        <th className="p-3.5">Tier</th>
-                        <th className="p-3.5">Score</th>
-                        <th className="p-3.5">Student / Contact</th>
-                        <th className="p-3.5">Direct Mobile (No OTP)</th>
-                        <th className="p-3.5">Programme</th>
-                        <th className="p-3.5">City</th>
-                        <th className="p-3.5">Status</th>
-                        <th className="p-3.5">Assigned Counsellor</th>
-                        <th className="p-3.5">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredLeads.map(lead => (
-                        <tr
-                          key={lead.id}
-                          onClick={() => setSelectedLeadId(lead.id)}
-                          className="hover:bg-teal-50/50 cursor-pointer transition-colors"
-                        >
-                          <td className="p-3.5">
-                            {lead.isReal ? (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-black text-[10px] border border-emerald-300 flex items-center gap-1 w-max">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                REAL CHAT
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px]">
-                                DEMO
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3.5">{getTierTag(lead.tier)}</td>
-                          <td className="p-3.5 font-mono font-black text-slate-900 text-sm">{lead.score}</td>
-                          <td className="p-3.5">
-                            <div className="font-extrabold text-slate-900">{lead.name}</div>
-                            <div className="text-[11px] text-slate-500">{lead.channel}</div>
-                          </td>
-                          <td className="p-3.5 font-mono font-bold text-slate-800">
-                            {lead.phone}
-                          </td>
-                          <td className="p-3.5 font-semibold text-slate-800">{getProgName(lead.prog)}</td>
-                          <td className="p-3.5 text-slate-600">{lead.city}</td>
-                          <td className="p-3.5">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-800 uppercase tracking-wider">
-                              {lead.status}
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+                {chatMessages.map((m) => (
+                  <div key={m.id} className={`chat-msg ${m.role === 'user' ? 'user' : 'assistant'}`}>
+                    {m.role === 'assistant' && (
+                      <div className="avatar avatar-bot">
+                        <Bot className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                    <div className="min-w-0 max-w-2xl">
+                      <div className="chat-bubble md">
+                        <MarkdownContent content={m.text} isUser={m.role === 'user'} />
+                      </div>
+
+                      {/* In-chat captured lead card */}
+                      {m.leadInfo && (
+                        <div className="mt-2 p-3 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/40 text-xs text-emerald-950 dark:text-emerald-100 space-y-1.5">
+                          <div className="flex items-center justify-between font-bold border-b border-emerald-200 dark:border-emerald-900 pb-1.5">
+                            <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                              <CheckCircle2 className="w-4 h-4" /> Lead Captured in Database!
                             </span>
-                          </td>
-                          <td className="p-3.5 font-semibold text-slate-700">{getCounsellorName(lead.c)}</td>
-                          <td className="p-3.5">
+                            <span className="badge badge-emerald text-[10px]">
+                              Score: {m.leadInfo.score}/100 · {m.leadInfo.tier} Lead 🔥
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5 text-[11px] pt-1">
+                            <div>Student: <strong>{m.leadInfo.name}</strong></div>
+                            <div>Mobile: <strong className="font-mono">{m.leadInfo.phone}</strong></div>
+                            <div>Branch: <strong>{m.leadInfo.branch || m.leadInfo.course}</strong></div>
+                            <div>Counsellor: <strong>{m.leadInfo.assigned_counsellor}</strong></div>
+                          </div>
+                          <div className="pt-1.5 flex gap-2">
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedLeadId(lead.id);
+                              onClick={() => {
+                                const leadMatch = leads.find(l => l.id === m.leadInfo.id);
+                                if (leadMatch) setSelectedLead(leadMatch);
+                                setActiveTab('leads');
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-[11px] border border-teal-200 flex items-center gap-1"
+                              className="btn btn-secondary btn-sm !py-1 !text-[10px]"
                             >
-                              <span>Inspect</span>
-                              <ChevronRight className="w-3 h-3" />
+                              Open in Leads Table <ArrowRight className="w-3 h-3 ml-1" />
                             </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            <a
+                              href={`https://wa.me/91${m.leadInfo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${m.leadInfo.name}, thank you for contacting Poornima University Admissions.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-primary btn-sm !py-1 !text-[10px]"
+                            >
+                              <MessageSquare className="w-3 h-3 mr-1" /> WhatsApp Counsellor
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sources */}
+                      {m.sources && m.sources.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+                          <span className="text-[10px] t3 font-semibold">Sources:</span>
+                          {m.sources.map((s: any, idx: number) => (
+                            <a
+                              key={idx}
+                              href={s.url || '#'}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="source-pill !text-[10px]"
+                            >
+                              {(s.title || s.url || 'Official page').slice(0, 30)}
+                              <ExternalLink className="w-2.5 h-2.5 ml-1 inline" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {chatLoading && (
+                  <div className="chat-msg assistant">
+                    <div className="avatar avatar-bot">
+                      <Bot className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="chat-bubble flex items-center gap-2 text-xs t3">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                      <span>Searching official college website…</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
+
+              {/* Quick Prompt Chips */}
+              <div className="px-3 py-2 border-t bd sf3 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+                <span className="t3 shrink-0 flex items-center gap-1 font-bold">
+                  <Zap className="w-3 h-3 text-amber-500" /> Quick:
+                </span>
+                {[
+                  '💻 B.Tech Computer Science (CSE)',
+                  '🏗️ B.Tech Civil Engineering',
+                  '⚡ B.Tech Electronics (ECE)',
+                  '⚙️ B.Tech Mechanical Engineering',
+                  'My 12th is 75%, calculate my scholarship',
+                  'My number is 9829011001, connect with counsellor'
+                ].map((chip, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={chatLoading}
+                    onClick={() => handleSendChatMessage(chip)}
+                    className="px-2.5 py-1 rounded-full sf border bd hover:border-blue-500 text-[11px] whitespace-nowrap font-medium transition-all shrink-0"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input Form */}
+              <form onSubmit={(e) => handleSendChatMessage(undefined, e)} className="p-3 border-t bd flex items-center gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ask fees, eligibility, or share 10-digit number (e.g., 'Rohit, 9829011001')…"
+                  className="input !text-xs !py-2 w-full"
+                  disabled={chatLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="btn btn-primary btn-sm !py-2 shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
             </div>
-          )}
 
-          {/* TAB 3: BOOKINGS */}
-          {activeTab === 'bookings' && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-extrabold text-slate-900">Counselling &amp; Campus Visit Bookings</h2>
-                  <p className="text-xs text-slate-500">Scheduled Google Meet video sessions and in-person campus tours</p>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200">
-                      <th className="p-3.5">Booking ID</th>
-                      <th className="p-3.5">Date &amp; Time</th>
-                      <th className="p-3.5">Student Lead</th>
-                      <th className="p-3.5">Booking Type</th>
-                      <th className="p-3.5">Meeting Mode / Place</th>
-                      <th className="p-3.5">Assigned Counsellor</th>
-                      <th className="p-3.5">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {BOOKINGS_DATA.filter(b => role === 'admin' || b.c === role).map(bk => (
-                      <tr key={bk.id} onClick={() => setSelectedLeadId(bk.lead)} className="hover:bg-teal-50/50 cursor-pointer">
-                        <td className="p-3.5 font-mono font-bold text-slate-500">{bk.id}</td>
-                        <td className="p-3.5 font-mono font-bold text-teal-800">{formatDateTime(bk.at)}</td>
-                        <td className="p-3.5 font-extrabold text-slate-900">{getLead(bk.lead)?.name}</td>
-                        <td className="p-3.5 text-slate-700 font-semibold">{bk.type}</td>
-                        <td className="p-3.5 text-slate-600">{bk.mode}</td>
-                        <td className="p-3.5 font-semibold text-slate-800">{getCounsellorName(bk.c)}</td>
-                        <td className="p-3.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            bk.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-800' :
-                            bk.status === 'Completed' ? 'bg-blue-100 text-blue-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {bk.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: FOLLOW-UP QUEUE */}
-          {activeTab === 'followups' && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-extrabold text-slate-900">Multi-Channel Follow-up Cadence (Queue)</h2>
-                  <p className="text-xs text-slate-500">Automated WhatsApp, SMS, AI voice calls and counsellor task reminders</p>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200">
-                      <th className="p-3.5">Job ID</th>
-                      <th className="p-3.5">Scheduled Time</th>
-                      <th className="p-3.5">Target Lead</th>
-                      <th className="p-3.5">Funnel Stage</th>
-                      <th className="p-3.5">Channel</th>
-                      <th className="p-3.5">Template / Nudge Purpose</th>
-                      <th className="p-3.5">Execution Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {FOLLOWUPS_DATA.filter(f => role === 'admin' || getLead(f.lead)?.c === role).map(fu => (
-                      <tr key={fu.id} onClick={() => setSelectedLeadId(fu.lead)} className="hover:bg-teal-50/50 cursor-pointer">
-                        <td className="p-3.5 font-mono font-bold text-slate-500">{fu.id}</td>
-                        <td className="p-3.5 font-mono font-bold text-slate-800">{formatDateTime(fu.at)}</td>
-                        <td className="p-3.5 font-extrabold text-slate-900">{getLead(fu.lead)?.name}</td>
-                        <td className="p-3.5 font-semibold text-slate-700">{fu.stage}</td>
-                        <td className="p-3.5 font-bold text-teal-800">{fu.ch}</td>
-                        <td className="p-3.5 text-slate-600 max-w-sm truncate">{fu.tpl}</td>
-                        <td className="p-3.5">
-                          <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                            fu.status.includes('Scheduled') ? 'bg-amber-100 text-amber-900 border border-amber-200' :
-                            fu.status.includes('Read') ? 'bg-emerald-100 text-emerald-900 border border-emerald-200' :
-                            'bg-slate-100 text-slate-700'
-                          }`}>
-                            {fu.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: COUNSELLORS */}
-          {activeTab === 'team' && (
-            <div className="space-y-6">
-              {/* 4 Branch Capacity Overview Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* 1. Computer Science (CSE) Card */}
-                <div 
-                  onClick={() => setCounsellorBranchFilter(counsellorBranchFilter === 'CSE' ? 'all' : 'CSE')}
-                  className={`p-4 rounded-3xl border transition-all cursor-pointer shadow-xs ${
-                    counsellorBranchFilter === 'CSE' 
-                      ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500' 
-                      : 'bg-white border-slate-200 hover:border-blue-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl">💻</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-900">
-                      5 Counsellors
-                    </span>
+            {/* Right: Lead Capture Explainer & Quick Form */}
+            <div className="lg:col-span-4 space-y-4">
+              <div className="card p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-teal-600/10 text-teal-600 flex items-center justify-center font-bold">
+                    <Sparkles className="w-4 h-4" />
                   </div>
-                  <h3 className="text-sm font-black text-slate-900 mt-2">Computer Science (CSE)</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Core CSE, AI &amp; ML, Cyber, Cloud</p>
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-600">Active Leads:</span>
-                    <span className="text-blue-700 font-mono">
-                      {leadsList.filter(l => (l.branch || '').toLowerCase().includes('computer') || (l.branch || '').toLowerCase().includes('cse')).length} Leads
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Team Capacity:</span>
-                    <span className="font-mono font-semibold">
-                      {COUNSELLORS.filter(c => c.branch === 'CSE').reduce((sum, c) => sum + c.maxOpen, 0)} Max
-                    </span>
-                  </div>
-                </div>
-
-                {/* 2. Civil Engineering Card */}
-                <div 
-                  onClick={() => setCounsellorBranchFilter(counsellorBranchFilter === 'Civil' ? 'all' : 'Civil')}
-                  className={`p-4 rounded-3xl border transition-all cursor-pointer shadow-xs ${
-                    counsellorBranchFilter === 'Civil' 
-                      ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-500' 
-                      : 'bg-white border-slate-200 hover:border-amber-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl">🏗️</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900">
-                      5 Counsellors
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-black text-slate-900 mt-2">Civil Engineering</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Structures, Highway, Smart Cities</p>
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-600">Active Leads:</span>
-                    <span className="text-amber-800 font-mono">
-                      {leadsList.filter(l => (l.branch || '').toLowerCase().includes('civil')).length} Leads
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Team Capacity:</span>
-                    <span className="font-mono font-semibold">
-                      {COUNSELLORS.filter(c => c.branch === 'Civil').reduce((sum, c) => sum + c.maxOpen, 0)} Max
-                    </span>
-                  </div>
-                </div>
-
-                {/* 3. Electronics (ECE) Card */}
-                <div 
-                  onClick={() => setCounsellorBranchFilter(counsellorBranchFilter === 'Electronic' ? 'all' : 'Electronic')}
-                  className={`p-4 rounded-3xl border transition-all cursor-pointer shadow-xs ${
-                    counsellorBranchFilter === 'Electronic' 
-                      ? 'bg-purple-50/80 border-purple-400 ring-2 ring-purple-500' 
-                      : 'bg-white border-slate-200 hover:border-purple-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl">⚡</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-900">
-                      5 Counsellors
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-black text-slate-900 mt-2">Electronics (ECE)</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">VLSI Chips, Embedded IoT, 5G</p>
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-600">Active Leads:</span>
-                    <span className="text-purple-700 font-mono">
-                      {leadsList.filter(l => (l.branch || '').toLowerCase().includes('electronic') || (l.branch || '').toLowerCase().includes('ece')).length} Leads
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Team Capacity:</span>
-                    <span className="font-mono font-semibold">
-                      {COUNSELLORS.filter(c => c.branch === 'Electronic').reduce((sum, c) => sum + c.maxOpen, 0)} Max
-                    </span>
-                  </div>
-                </div>
-
-                {/* 4. Mechanical Engineering Card */}
-                <div 
-                  onClick={() => setCounsellorBranchFilter(counsellorBranchFilter === 'Mechanical' ? 'all' : 'Mechanical')}
-                  className={`p-4 rounded-3xl border transition-all cursor-pointer shadow-xs ${
-                    counsellorBranchFilter === 'Mechanical' 
-                      ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-500' 
-                      : 'bg-white border-slate-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl">⚙️</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900">
-                      5 Counsellors
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-black text-slate-900 mt-2">Mechanical Engineering</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">EV &amp; Auto, Robotics, CAD/CAM</p>
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-600">Active Leads:</span>
-                    <span className="text-emerald-800 font-mono">
-                      {leadsList.filter(l => (l.branch || '').toLowerCase().includes('mech')).length} Leads
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Team Capacity:</span>
-                    <span className="font-mono font-semibold">
-                      {COUNSELLORS.filter(c => c.branch === 'Mechanical').reduce((sum, c) => sum + c.maxOpen, 0)} Max
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Counsellor Roster Table with Branch Filters */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                      <UserCheck className="w-4 h-4 text-[#0B2545]" />
-                      Admission Counsellor Roster &amp; Branch Assignment
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Round-robin routing ensures leads are routed to counsellors specialized in student&apos;s chosen engineering branch
-                    </p>
-                  </div>
-
-                  {/* Branch Filter Pills */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setCounsellorBranchFilter('all')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        counsellorBranchFilter === 'all'
-                          ? 'bg-[#0B2545] text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      All Branches ({COUNSELLORS.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCounsellorBranchFilter('CSE')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        counsellorBranchFilter === 'CSE'
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                      }`}
-                    >
-                      💻 CSE (5)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCounsellorBranchFilter('Civil')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        counsellorBranchFilter === 'Civil'
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                      }`}
-                    >
-                      🏗️ Civil (5)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCounsellorBranchFilter('Electronic')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        counsellorBranchFilter === 'Electronic'
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-                      }`}
-                    >
-                      ⚡ Electronic / ECE (5)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCounsellorBranchFilter('Mechanical')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        counsellorBranchFilter === 'Mechanical'
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                      }`}
-                    >
-                      ⚙️ Mechanical (5)
-                    </button>
+                    <h3 className="font-bold text-xs">100% In-Chat Lead Capture</h3>
+                    <p className="text-[11px] t3">No OTP, No Barrier</p>
                   </div>
                 </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200">
-                        <th className="p-3.5">Counsellor</th>
-                        <th className="p-3.5">Assigned Branch &amp; Domain Focus</th>
-                        <th className="p-3.5">Open Leads / Max Capacity</th>
-                        <th className="p-3.5">Hot Leads</th>
-                        <th className="p-3.5">Daily Hours</th>
-                        <th className="p-3.5">Calendar Status</th>
-                        <th className="p-3.5 text-right">Quick Contact</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {COUNSELLORS.filter(c => counsellorBranchFilter === 'all' || c.branch === counsellorBranchFilter).map(c => {
-                        const mine = leadsList.filter(l => l.c === c.id);
-                        const myOpen = mine.filter(l => !['APPLIED', 'ENROLLED', 'LOST', 'DISQUALIFIED'].includes(l.status));
-                        const myHot = myOpen.filter(l => l.tier === 'Hot');
-                        const capacityPct = Math.min(100, Math.round((myOpen.length / c.maxOpen) * 100));
-
-                        return (
-                          <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="p-3.5">
-                              <div className="flex items-center gap-2.5">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
-                                  c.branch === 'CSE' ? 'bg-blue-100 text-blue-800' :
-                                  c.branch === 'Civil' ? 'bg-amber-100 text-amber-800' :
-                                  c.branch === 'Electronic' ? 'bg-purple-100 text-purple-800' :
-                                  c.branch === 'Mechanical' ? 'bg-emerald-100 text-emerald-800' :
-                                  'bg-slate-100 text-slate-800'
-                                }`}>
-                                  {c.name.split(' ').map(n => n[0]).join('')}
-                                </div>
-                                <div>
-                                  <div className="font-extrabold text-slate-900">{c.name}</div>
-                                  <div className="font-mono text-slate-500 text-[11px]">{c.phone}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3.5">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
-                                  c.branch === 'CSE' ? 'bg-blue-100 text-blue-900 border border-blue-200' :
-                                  c.branch === 'Civil' ? 'bg-amber-100 text-amber-900 border border-amber-200' :
-                                  c.branch === 'Electronic' ? 'bg-purple-100 text-purple-900 border border-purple-200' :
-                                  c.branch === 'Mechanical' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200' :
-                                  'bg-slate-100 text-slate-800'
-                                }`}>
-                                  {c.branch === 'CSE' && '💻 CSE'}
-                                  {c.branch === 'Civil' && '🏗️ Civil'}
-                                  {c.branch === 'Electronic' && '⚡ Electronic'}
-                                  {c.branch === 'Mechanical' && '⚙️ Mechanical'}
-                                  {c.branch === 'Other' && 'General'}
-                                </span>
-                                <span className="font-semibold text-slate-800 text-[11px]">{c.specialization || c.group}</span>
-                              </div>
-                            </td>
-                            <td className="p-3.5">
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between text-[11px]">
-                                  <span className="font-mono font-bold text-slate-900">{myOpen.length} / {c.maxOpen}</span>
-                                  <span className="text-slate-400 font-mono text-[10px]">{capacityPct}%</span>
-                                </div>
-                                <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full ${
-                                      capacityPct > 80 ? 'bg-red-500' : capacityPct > 50 ? 'bg-amber-500' : 'bg-emerald-500'
-                                    }`} 
-                                    style={{ width: `${capacityPct}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3.5">
-                              {myHot.length > 0 ? (
-                                <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-extrabold bg-orange-100 text-orange-800 border border-orange-200 flex items-center gap-1 w-fit">
-                                  <Flame className="w-3 h-3 fill-orange-600 text-orange-600" />
-                                  {myHot.length}
-                                </span>
-                              ) : (
-                                <span className="font-mono text-slate-400">0</span>
-                              )}
-                            </td>
-                            <td className="p-3.5 font-mono text-slate-600 text-[11px]">
-                              {c.hours}
-                            </td>
-                            <td className="p-3.5 text-emerald-700 font-semibold flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                              {c.calendar}
-                            </td>
-                            <td className="p-3.5 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <a
-                                  href={`https://wa.me/${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${c.name}, here is a student inquiry for ${c.group}.`)}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
-                                  title="WhatsApp Counsellor"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </a>
-                                <a
-                                  href={`tel:${c.phone}`}
-                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-                                  title="Call Counsellor"
-                                >
-                                  <PhoneCall className="w-3.5 h-3.5" />
-                                </a>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 6: SETTINGS */}
-          {activeTab === 'settings' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-                <h2 className="text-sm font-extrabold text-slate-900">100-Point Scoring Weights Config</h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200">
-                        <th className="p-2.5">Signal</th>
-                        <th className="p-2.5">Category Group</th>
-                        <th className="p-2.5 text-right">Points</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {Object.entries(W).map(([key, item]) => (
-                        <tr key={key}>
-                          <td className="p-2.5 font-semibold text-slate-800">{item.l}</td>
-                          <td className="p-2.5 text-slate-500">{item.g}</td>
-                          <td className="p-2.5 font-mono font-extrabold text-teal-700 text-right">+{item.p}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-                <h2 className="text-sm font-extrabold text-slate-900">Thresholds &amp; Operational Rules</h2>
-                <dl className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
-                    <dt className="text-slate-500 font-semibold">Hot Tier Gate</dt>
-                    <dd className="font-extrabold text-orange-600 text-base mt-0.5">Score ≥ 70</dd>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
-                    <dt className="text-slate-500 font-semibold">Warm Tier Gate</dt>
-                    <dd className="font-extrabold text-amber-600 text-base mt-0.5">Score 40 – 69</dd>
-                  </div>
-                </dl>
-
-                <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl text-xs space-y-1 text-teal-950">
-                  <div className="font-extrabold flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-teal-700" /> Direct Capture Rule:
-                  </div>
-                  <p className="leading-relaxed">
-                    Leads are saved directly upon sharing mobile number (No OTP barrier). Score is calculated automatically and assigned in round-robin.
+                <p className="text-xs t3 leading-relaxed">
+                  As prospective students chat about courses, the AI extracts their <strong>course preference</strong>, <strong>12th marks</strong>, and <strong>10-digit mobile number</strong>, assigns the lead to a branch counsellor, and scores it 0–100.
+                </p>
+                <div className="p-2.5 rounded-xl sf3 border bd text-[11px] space-y-1">
+                  <div className="font-bold text-xs t2">Core Rule:</div>
+                  <p className="t3">
+                    Students sharing valid phone numbers immediately transition to <strong>Qualified Hot Lead</strong> status.
                   </p>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* TAB 7: SPEC */}
-          {activeTab === 'data' && (
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4 text-xs text-slate-800">
-              <h2 className="text-sm font-black text-slate-900">Lead Engine Technical Integration Guide</h2>
-              <p className="text-slate-600 leading-relaxed">
-                Leads are stored in SQLite database under table <code>admission_leads</code>. The AI Chat uses <code>generate_college_web_search_answer</code> with zero external RAG dependencies, querying official college sitemap sources directly.
-              </p>
+              {/* Direct Quick Capture Card */}
+              <div className="card p-4 space-y-3">
+                <h3 className="font-bold text-xs flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5 text-blue-600" /> Quick Direct Lead Entry
+                </h3>
+                <p className="text-[11px] t3">Add an offline or phone inquiry directly into the CRM database:</p>
+                <button
+                  type="button"
+                  onClick={() => setIsDirectLeadModalOpen(true)}
+                  className="btn btn-primary btn-sm w-full"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Open Direct Lead Form
+                </button>
+              </div>
             </div>
-          )}
-        </main>
-      </div>
+          </div>
+        )}
 
-      {/* SLIDE-OVER LEAD DETAIL DRAWER */}
-      {selectedLead && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-950/40 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
-            <div className="p-6 space-y-5">
-              {/* Header */}
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-500">{selectedLead.id}</span>
-                    {getTierTag(selectedLead.tier)}
-                    {selectedLead.isReal && (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-extrabold text-[10px]">
-                        🟢 REAL CHAT
-                      </span>
-                    )}
+        {/* TAB 3: ADMISSION OVERVIEW (KPIS, FUNNEL & CALL FIRST) */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Funnel & Tier Breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Funnel */}
+              <div className="card p-5 space-y-4">
+                <div className="flex items-center justify-between border-b bd pb-3">
+                  <h3 className="font-bold text-sm">Admission Conversion Funnel</h3>
+                  <span className="text-[11px] t3 font-semibold">Stage Progression</span>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { name: 'Total Web Inquiries', count: totalCount + 24 },
+                    { name: 'Leads Captured', count: totalCount },
+                    { name: 'Phone Verified (No OTP)', count: totalCount },
+                    { name: 'Qualified (Score ≥ 40)', count: qualifiedCount },
+                    { name: 'Counselling Booked', count: BOOKINGS_DATA.length },
+                    { name: 'Enrolled / Won', count: convertedCount }
+                  ].map((st, idx) => {
+                    const maxVal = totalCount + 24;
+                    const pct = Math.max(8, Math.round((st.count / (maxVal || 1)) * 100));
+                    return (
+                      <div key={idx} className="flex items-center gap-3 text-xs">
+                        <span className="w-36 font-semibold t2 truncate">{st.name}</span>
+                        <div className="flex-1 bg-[var(--surface-3)] rounded-full h-3.5 overflow-hidden">
+                          <div className="bg-teal-600 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="font-mono font-bold w-8 text-right">{st.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tier & Channel Breakdown */}
+              <div className="card p-5 space-y-4">
+                <div className="flex items-center justify-between border-b bd pb-3">
+                  <h3 className="font-bold text-sm">Leads by Temperature &amp; Channel</h3>
+                  <span className="text-[11px] t3 font-semibold">Priority Distribution</span>
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider t3">Temperature Tier</p>
+                  <div className="space-y-2">
+                    {[
+                      { tier: '🔥 Hot (Score ≥ 70)', count: leads.filter(l => l.tier === 'Hot').length, color: 'bg-red-500' },
+                      { tier: '⚡ Warm (Score 40–69)', count: leads.filter(l => l.tier === 'Warm').length, color: 'bg-amber-500' },
+                      { tier: '❄️ Cold (Score < 40)', count: leads.filter(l => l.tier === 'Cold').length, color: 'bg-blue-500' }
+                    ].map((tb, idx) => (
+                      <div key={idx} className="flex items-center gap-3 text-xs">
+                        <span className="w-36 font-medium t2">{tb.tier}</span>
+                        <div className="flex-1 bg-[var(--surface-3)] rounded-full h-2.5 overflow-hidden">
+                          <div className={`${tb.color} h-full rounded-full`} style={{ width: `${(tb.count / (totalCount || 1)) * 100}%` }} />
+                        </div>
+                        <span className="font-mono font-bold w-6 text-right">{tb.count}</span>
+                      </div>
+                    ))}
                   </div>
-                  <h2 className="text-lg font-black text-slate-900 mt-1">{selectedLead.name}</h2>
-                  <p className="text-xs text-slate-500">{getProgName(selectedLead.prog)} &bull; {selectedLead.city}</p>
+
+                  <p className="text-[11px] font-bold uppercase tracking-wider t3 pt-2">Channel Source</p>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between py-1 border-b bd">
+                      <span className="t2">Live Web Chat</span>
+                      <span className="font-mono font-bold">{leads.filter(l => l.channel === 'Live Web Chat').length}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b bd">
+                      <span className="t2">Direct Entry</span>
+                      <span className="font-mono font-bold">{leads.filter(l => l.channel !== 'Live Web Chat').length}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* "Call These First" Hot Actionable Queue */}
+            <div className="card overflow-hidden">
+              <div className="p-4 border-b bd sf2 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm flex items-center gap-1.5">
+                    <Flame className="w-4 h-4 text-red-500 fill-red-500" /> Call These First (Hot Priority Queue)
+                  </h3>
+                  <p className="text-xs t3">High score Hot/Warm leads requiring immediate counsellor phone outreach</p>
+                </div>
+                <span className="badge badge-emerald text-xs">
+                  {leads.filter(l => l.tier === 'Hot').length} Actionable Leads
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="leads-table">
+                  <thead>
+                    <tr>
+                      <th>VISITOR</th>
+                      <th>CONTACT</th>
+                      <th>PROGRAMME</th>
+                      <th>SCORE</th>
+                      <th>COUNSELLOR</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.filter(l => l.tier === 'Hot').slice(0, 5).map(l => (
+                      <tr key={l.id} onClick={() => setSelectedLead(l)} className="cursor-pointer hover:bg-[var(--surface-2)]">
+                        <td className="font-bold text-xs">{l.name}</td>
+                        <td className="font-mono text-xs">{l.phone}</td>
+                        <td className="text-xs">{l.course} ({l.branch})</td>
+                        <td className="font-mono font-bold text-xs text-red-500">{l.score}</td>
+                        <td className="text-xs t3">{l.counsellorName}</td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedLead(l);
+                            }}
+                            className="btn btn-secondary btn-sm !py-1 !text-[11px]"
+                          >
+                            Inspect <ChevronRight className="w-3 h-3 ml-1" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: 4 BRANCHES & COUNSELLOR ROSTER */}
+        {activeTab === 'counsellors' && (
+          <div className="space-y-5">
+            {/* 4 Branch Capacity Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {[
+                { branch: 'CSE', icon: '💻', title: 'Computer Science (CSE)', sub: 'Core CSE, AI & ML, Cyber, Cloud', color: 'badge-blue' },
+                { branch: 'Civil', icon: '🏗️', title: 'Civil Engineering', sub: 'Structures, Highway, Smart Cities', color: 'badge-amber' },
+                { branch: 'Electronic', icon: '⚡', title: 'Electronics (ECE)', sub: 'VLSI Chips, Embedded IoT, 5G', color: 'badge-teal' },
+                { branch: 'Mechanical', icon: '⚙️', title: 'Mechanical Engineering', sub: 'EV & Auto, Robotics, CAD/CAM', color: 'badge-emerald' }
+              ].map((bCard) => {
+                const branchLeads = leads.filter(l => (l.branch || '').toLowerCase().includes(bCard.branch.toLowerCase()));
+                const branchCounsellors = COUNSELLORS.filter(c => c.branch === bCard.branch);
+                const isSelected = counsellorBranchFilter === bCard.branch;
+
+                return (
+                  <div
+                    key={bCard.branch}
+                    onClick={() => setCounsellorBranchFilter(isSelected ? 'all' : (bCard.branch as any))}
+                    className={`card p-4 cursor-pointer transition-all ${
+                      isSelected ? 'ring-2 ring-blue-500 shadow-md' : 'hover:border-blue-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl">{bCard.icon}</span>
+                      <span className="badge badge-slate text-[10px] font-bold">5 Counsellors</span>
+                    </div>
+                    <h4 className="font-bold text-sm mt-2">{bCard.title}</h4>
+                    <p className="text-[11px] t3 mt-0.5">{bCard.sub}</p>
+                    <div className="mt-3 pt-2.5 border-t bd flex justify-between text-xs font-semibold">
+                      <span className="t3">Active Leads:</span>
+                      <span className="font-mono text-blue-600 dark:text-blue-400">{branchLeads.length}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Counsellor Roster Table */}
+            <div className="card overflow-hidden">
+              <div className="p-4 border-b bd sf2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-sm flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-teal-600" /> Counsellor Roster &amp; Branch Assignment
+                  </h3>
+                  <p className="text-xs t3">20 Demo Counsellors mapped round-robin across all 4 engineering branches</p>
+                </div>
+                <div className="flex gap-1 sf3 p-1 rounded-xl border bd flex-wrap text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setCounsellorBranchFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg font-semibold ${counsellorBranchFilter === 'all' ? 'bg-[var(--surface-1)] text-[var(--text-1)] font-bold' : 't3'}`}
+                  >
+                    All ({COUNSELLORS.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCounsellorBranchFilter('CSE')}
+                    className={`px-2.5 py-1 rounded-lg font-semibold ${counsellorBranchFilter === 'CSE' ? 'bg-[var(--surface-1)] text-[var(--text-1)] font-bold' : 't3'}`}
+                  >
+                    💻 CSE (5)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCounsellorBranchFilter('Civil')}
+                    className={`px-2.5 py-1 rounded-lg font-semibold ${counsellorBranchFilter === 'Civil' ? 'bg-[var(--surface-1)] text-[var(--text-1)] font-bold' : 't3'}`}
+                  >
+                    🏗️ Civil (5)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCounsellorBranchFilter('Electronic')}
+                    className={`px-2.5 py-1 rounded-lg font-semibold ${counsellorBranchFilter === 'Electronic' ? 'bg-[var(--surface-1)] text-[var(--text-1)] font-bold' : 't3'}`}
+                  >
+                    ⚡ ECE (5)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCounsellorBranchFilter('Mechanical')}
+                    className={`px-2.5 py-1 rounded-lg font-semibold ${counsellorBranchFilter === 'Mechanical' ? 'bg-[var(--surface-1)] text-[var(--text-1)] font-bold' : 't3'}`}
+                  >
+                    ⚙️ Mech (5)
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="leads-table">
+                  <thead>
+                    <tr>
+                      <th>COUNSELLOR</th>
+                      <th>BRANCH &amp; DOMAIN FOCUS</th>
+                      <th>CAPACITY</th>
+                      <th>HOURS</th>
+                      <th>CALENDAR</th>
+                      <th>CONTACT</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {COUNSELLORS.filter(c => counsellorBranchFilter === 'all' || c.branch === counsellorBranchFilter).map((c) => (
+                      <tr key={c.id}>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <div className="avatar avatar-user !w-7 !h-7 !rounded-lg text-[10px] font-bold">
+                              {c.name.split(' ').map(n => n[0]).join('')}
+                            </div>
+                            <div>
+                              <p className="font-bold text-xs">{c.name}</p>
+                              <p className="font-mono text-[10px] t3">{c.phone}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge badge-slate text-[10px] font-bold mr-1.5">{c.branch}</span>
+                          <span className="text-xs t2">{c.specialization}</span>
+                        </td>
+                        <td className="font-mono text-xs">{c.maxOpen} max leads</td>
+                        <td className="text-xs t3">{c.hours}</td>
+                        <td>
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            {c.calendar}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href={`https://wa.me/${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${c.name}, here is a student admission inquiry.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1 rounded-md hover:bg-[var(--surface-3)] text-emerald-600"
+                              title="WhatsApp"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                            </a>
+                            <a
+                              href={`tel:${c.phone}`}
+                              className="p-1 rounded-md hover:bg-[var(--surface-3)] t3"
+                              title="Call"
+                            >
+                              <PhoneCall className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: BOOKINGS */}
+        {activeTab === 'bookings' && (
+          <div className="card overflow-hidden">
+            <div className="p-4 border-b bd sf2">
+              <h3 className="font-bold text-sm">Counselling &amp; Campus Visit Bookings</h3>
+              <p className="text-xs t3">Scheduled Google Meet sessions and campus tour bookings</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="leads-table">
+                <thead>
+                  <tr>
+                    <th>BOOKING ID</th>
+                    <th>STUDENT</th>
+                    <th>DATE &amp; TIME</th>
+                    <th>TYPE</th>
+                    <th>VENUE / LINK</th>
+                    <th>COUNSELLOR</th>
+                    <th>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {BOOKINGS_DATA.map((b) => (
+                    <tr key={b.id}>
+                      <td className="font-mono text-xs t3 font-semibold">{b.id}</td>
+                      <td className="font-bold text-xs">{b.leadName}</td>
+                      <td className="font-mono text-xs text-blue-600 dark:text-blue-400">{b.at}</td>
+                      <td className="text-xs">{b.type}</td>
+                      <td className="text-xs t3">{b.mode}</td>
+                      <td className="text-xs font-semibold">{b.counsellor}</td>
+                      <td>
+                        <span className="badge badge-emerald text-[10px] font-bold">{b.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: FOLLOW-UPS */}
+        {activeTab === 'followups' && (
+          <div className="card overflow-hidden">
+            <div className="p-4 border-b bd sf2">
+              <h3 className="font-bold text-sm">Multi-Channel Follow-up Cadence</h3>
+              <p className="text-xs t3">Automated WhatsApp and SMS nudges sent to leads</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="leads-table">
+                <thead>
+                  <tr>
+                    <th>JOB ID</th>
+                    <th>STUDENT</th>
+                    <th>SCHEDULED</th>
+                    <th>STAGE</th>
+                    <th>CHANNEL</th>
+                    <th>TEMPLATE / PURPOSE</th>
+                    <th>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {FOLLOWUPS_DATA.map((f) => (
+                    <tr key={f.id}>
+                      <td className="font-mono text-xs t3">{f.id}</td>
+                      <td className="font-bold text-xs">{f.leadName}</td>
+                      <td className="font-mono text-xs">{f.at}</td>
+                      <td className="text-xs">{f.stage}</td>
+                      <td className="font-bold text-xs text-teal-600">{f.ch}</td>
+                      <td className="text-xs t3 max-w-sm truncate">{f.tpl}</td>
+                      <td>
+                        <span className="badge badge-blue text-[10px]">{f.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 7: 100-PT SCORING RULES */}
+        {activeTab === 'scoring' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="card p-5 space-y-3.5">
+              <h3 className="font-bold text-sm">100-Point Dynamic Scoring Signals</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b bd t3 font-bold">
+                      <th className="py-2">Signal</th>
+                      <th className="py-2">Category</th>
+                      <th className="py-2 text-right">Points</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {Object.entries(SCORING_WEIGHTS).map(([k, s]) => (
+                      <tr key={k}>
+                        <td className="py-2 font-semibold">{s.l}</td>
+                        <td className="py-2 t3">{s.g}</td>
+                        <td className="py-2 font-mono font-bold text-teal-600 text-right">+{s.p}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card p-5 space-y-4">
+              <h3 className="font-bold text-sm">Priority Gates &amp; Direct Capture</h3>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-xl sf3 border bd space-y-1">
+                  <div className="t3 font-semibold">Hot Tier Gate</div>
+                  <div className="text-xl font-extrabold text-red-500">Score ≥ 70</div>
+                  <p className="text-[10px] t3">Assigned immediately for 15-min SLA call</p>
+                </div>
+                <div className="p-3.5 rounded-xl sf3 border bd space-y-1">
+                  <div className="t3 font-semibold">Warm Tier Gate</div>
+                  <div className="text-xl font-extrabold text-amber-500">Score 40–69</div>
+                  <p className="text-[10px] t3">Nurtured via WhatsApp automated brochure</p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900 text-xs space-y-1 text-teal-950 dark:text-teal-200">
+                <div className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-teal-600" /> Direct Capture Rule:
+                </div>
+                <p className="leading-relaxed text-[11px]">
+                  Leads are saved directly upon sharing mobile number (No OTP barrier). Score is calculated automatically and assigned in round-robin to specialized branch counsellors.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SLIDE-OVER LEAD DETAIL INSPECT MODAL */}
+        {selectedLead && (
+          <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-black/50 backdrop-blur-xs">
+            <div className="w-full max-w-lg bg-[var(--surface-1)] text-[var(--text-1)] h-full shadow-2xl flex flex-col justify-between overflow-y-auto border-l bd animate-in slide-in-from-right duration-200">
+              <div className="p-6 space-y-5">
+                {/* Header */}
+                <div className="flex items-start justify-between border-b bd pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold t3">{selectedLead.id}</span>
+                      <span className={`badge text-[10px] font-bold ${
+                        selectedLead.tier === 'Hot' ? 'badge-danger' : selectedLead.tier === 'Warm' ? 'badge-amber' : 'badge-slate'
+                      }`}>
+                        {selectedLead.tier} Tier
+                      </span>
+                      {selectedLead.isReal && (
+                        <span className="badge badge-emerald text-[10px]">REAL CHAT</span>
+                      )}
+                    </div>
+                    <h2 className="text-xl font-bold mt-1.5">{selectedLead.name}</h2>
+                    <p className="text-xs t3 mt-0.5">{selectedLead.course} ({selectedLead.branch}) · {selectedLead.city}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLead(null)}
+                    className="p-1.5 rounded-xl hover:bg-[var(--surface-3)] t3"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* AI Summary Card */}
+                <div className="p-3.5 rounded-xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900 text-xs space-y-1 text-teal-950 dark:text-teal-200">
+                  <div className="font-bold flex items-center gap-1.5 text-teal-700 dark:text-teal-400">
+                    <Sparkles className="w-3.5 h-3.5" /> AI Admission Context Summary:
+                  </div>
+                  <p className="leading-relaxed text-[11px]">{selectedLead.summary}</p>
+                </div>
+
+                {/* 100-Point Score Breakdown */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold">100-Point Score Breakdown</h3>
+                    <span className="font-mono font-bold text-sm text-teal-600 dark:text-teal-400">
+                      {selectedLead.score} / 100
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(selectedLead.breakdown || []).map((b, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-lg sf3 border bd">
+                        <span className="t2 font-medium">{b.l}</span>
+                        <span className="font-mono font-bold text-teal-600 dark:text-teal-400">+{b.p}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Contact Facts */}
+                <div className="p-4 rounded-xl sf3 border bd space-y-2.5 text-xs">
+                  <h3 className="font-bold">Contact &amp; Assignment Facts</h3>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>Mobile: <strong className="font-mono">{selectedLead.phone || '—'}</strong></div>
+                    <div>Email: <strong>{selectedLead.email || '—'}</strong></div>
+                    <div>Channel: <strong>{selectedLead.channel}</strong></div>
+                    <div>Status: <strong>{selectedLead.status}</strong></div>
+                    <div>Branch: <strong>{selectedLead.branch}</strong></div>
+                    <div>Counsellor: <strong className="text-teal-600">{selectedLead.counsellorName || 'Neha Mathur'}</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Quick Contact Buttons */}
+              <div className="p-4 border-t bd sf2 flex items-center gap-2.5">
+                <a
+                  href={`https://wa.me/91${(selectedLead.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedLead.name}, thank you for contacting Poornima University Admissions.`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary btn-sm flex-1 !py-2.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 mr-1" /> WhatsApp Student
+                </a>
+                <a
+                  href={`tel:${selectedLead.phone}`}
+                  className="btn btn-secondary btn-sm flex-1 !py-2.5"
+                >
+                  <PhoneCall className="w-3.5 h-3.5 mr-1" /> Call Counsellor
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DIRECT QUICK LEAD CAPTURE MODAL */}
+        {isDirectLeadModalOpen && (
+          <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+            <div className="w-full max-w-md bg-[var(--surface-1)] text-[var(--text-1)] rounded-2xl shadow-2xl border bd p-5 space-y-4">
+              <div className="flex items-center justify-between border-b bd pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">Direct Quick Lead Capture</h3>
+                    <p className="text-[10px] t3">No OTP required · Auto score &amp; assignment</p>
+                  </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSelectedLeadId(null)}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  onClick={() => setIsDirectLeadModalOpen(false)}
+                  className="p-1 rounded-lg hover:bg-[var(--surface-3)] t3"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* AI Summary */}
-              <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-xs space-y-1 text-teal-950">
-                <div className="font-extrabold flex items-center gap-1.5 text-teal-900">
-                  <Sparkles className="w-3.5 h-3.5 text-teal-700" /> AI Admission Context Summary:
+              <form onSubmit={handleDirectLeadSubmit} className="space-y-3 text-xs">
+                <div>
+                  <label className="font-semibold block mb-1">Student Full Name</label>
+                  <input
+                    type="text"
+                    value={directName}
+                    onChange={(e) => setDirectName(e.target.value)}
+                    placeholder="e.g. Aman Sharma"
+                    className="input w-full !text-xs !py-2"
+                  />
                 </div>
-                <p className="leading-relaxed">{selectedLead.summary}</p>
-              </div>
 
-              {/* Score Breakdown */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-extrabold text-slate-900">100-Point Score Breakdown</h3>
-                  <span className="font-mono font-black text-slate-900 text-sm">{selectedLead.score} / 100</span>
+                <div>
+                  <label className="font-semibold block mb-1">Mobile Number (10 Digits) *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={directPhone}
+                    onChange={(e) => setDirectPhone(e.target.value)}
+                    placeholder="e.g. 9829011001"
+                    className="input w-full !text-xs !py-2 font-mono"
+                  />
                 </div>
-                <div className="space-y-1.5">
-                  {selectedLead.breakdown?.map((b, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs p-2 bg-slate-50 rounded-xl">
-                      <span className="text-slate-700 font-medium">{b.l}</span>
-                      <span className="font-mono font-bold text-teal-700">+{b.p}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Contact Facts */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
-                <h3 className="font-extrabold text-slate-900">Contact Details</h3>
-                <div className="grid grid-cols-2 gap-2 text-slate-700">
-                  <div>Mobile: <strong className="font-mono">{selectedLead.phone}</strong></div>
-                  <div>Channel: <strong>{selectedLead.channel}</strong></div>
-                  <div>City: <strong>{selectedLead.city}</strong></div>
-                  <div>Status: <strong>{selectedLead.status}</strong></div>
-                  <div>Branch: <strong className="text-slate-900">{selectedLead.branch || '—'}</strong></div>
-                  <div>Assigned Counsellor: <strong className="text-slate-900">{getCounsellorName(selectedLead.c)}</strong></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold block mb-1">Course</label>
+                    <select
+                      value={directCourse}
+                      onChange={(e) => setDirectCourse(e.target.value)}
+                      className="select w-full !text-xs !py-2"
+                    >
+                      <option value="B.Tech">B.Tech</option>
+                      <option value="BCA">BCA</option>
+                      <option value="BBA">BBA</option>
+                      <option value="MBA">MBA</option>
+                      <option value="B.Des">B.Des</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-semibold block mb-1">Branch</label>
+                    <select
+                      value={directBranch}
+                      onChange={(e) => setDirectBranch(e.target.value)}
+                      className="select w-full !text-xs !py-2"
+                    >
+                      <option value="Computer Science (CSE)">CSE</option>
+                      <option value="Civil Engineering">Civil</option>
+                      <option value="Electronics Engineering (ECE)">ECE</option>
+                      <option value="Mechanical Engineering">Mechanical</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Bottom Actions */}
-            <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center gap-3">
-              <a
-                href={`https://wa.me/${selectedLead.phone.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <span>WhatsApp Student</span>
-              </a>
-              <a
-                href={`tel:${selectedLead.phone}`}
-                className="flex-1 py-2.5 bg-teal-700 hover:bg-teal-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <PhoneCall className="w-3.5 h-3.5" />
-                <span>Call Counsellor</span>
-              </a>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold block mb-1">City</label>
+                    <input
+                      type="text"
+                      value={directCity}
+                      onChange={(e) => setDirectCity(e.target.value)}
+                      className="input w-full !text-xs !py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold block mb-1">Academic Marks</label>
+                    <input
+                      type="text"
+                      value={directAcademic}
+                      onChange={(e) => setDirectAcademic(e.target.value)}
+                      className="input w-full !text-xs !py-2"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsDirectLeadModalOpen(false)}
+                    className="btn btn-secondary btn-sm flex-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingDirect || !directPhone.trim()}
+                    className="btn btn-primary btn-sm flex-1"
+                  >
+                    {isSubmittingDirect ? 'Capturing…' : 'Save Lead Directly'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </DashboardShell>
   );
 }

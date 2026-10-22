@@ -8,6 +8,7 @@ from app.services.llm.mock import MockLLMProvider, LocalSentenceEmbeddingProvide
 class SafeLLMProvider(BaseLLMProvider):
     def __init__(self):
         self.primary_provider = None
+        self.used_fallback = False
         if settings.OPENAI_API_KEY:
             try:
                 self.primary_provider = OpenAILLMProvider(settings.OPENAI_API_KEY)
@@ -23,9 +24,12 @@ class SafeLLMProvider(BaseLLMProvider):
     async def generate_response(self, prompt: str, system_instruction: str = "") -> str:
         if self.primary_provider:
             try:
-                return await self.primary_provider.generate_response(prompt, system_instruction)
+                res = await self.primary_provider.generate_response(prompt, system_instruction)
+                self.used_fallback = False
+                return res
             except Exception as e:
                 print(f"[LLM] Primary provider error ({e}), falling back to local extractor.")
+        self.used_fallback = True
         return await self.fallback.generate_response(prompt, system_instruction)
 
 

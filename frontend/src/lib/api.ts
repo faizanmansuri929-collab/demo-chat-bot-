@@ -594,11 +594,13 @@ export const api = {
 
   // --- College Voice Web Search API Methods ---
   createVoiceSession: async (
-    projectId: string = 'proj_poornima',
+    projectId: string,
     voice: string = 'verse',
     language: string = 'en-IN',
-    mode: string = 'hands_free',
-    vadThreshold: number = 0.5,
+    mode: 'hands_free' | 'push_to_talk' = 'hands_free',
+    micProfile: 'near_field' | 'far_field' = 'near_field',
+    bargeIn: boolean = false,
+    vadThreshold: number = 0.7,
     silenceMs: number = 650
   ): Promise<VoiceSessionResponse> => {
     const res = await axios.post(`${API_BASE}/college-voice/session`, {
@@ -606,9 +608,16 @@ export const api = {
       voice,
       language,
       mode,
+      mic_profile: micProfile,
+      barge_in: bargeIn,
       vad_threshold: vadThreshold,
       silence_duration_ms: silenceMs
     });
+    return res.data;
+  },
+
+  executeVoiceTurn: async (payload: VoiceTurnRequest): Promise<VoiceTurnResponse> => {
+    const res = await axios.post(`${API_BASE}/college-voice/turn`, payload);
     return res.data;
   },
 
@@ -656,6 +665,16 @@ export const api = {
       history
     });
     return res.data;
+  },
+
+  checkHealth: async (): Promise<{ status: string; service?: string } | null> => {
+    try {
+      const baseUrl = API_BASE.replace(/\/api\/?$/, '');
+      const res = await axios.get(`${baseUrl}/`, { timeout: 2500 });
+      return res.data;
+    } catch (e) {
+      return null;
+    }
   }
 };
 
@@ -669,9 +688,9 @@ export interface VoiceSessionResponse {
   project_id: string;
   college_name: string;
   base_domain: string;
-  model: string;
-  voice: string;
-  language: string;
+  model?: string;
+  voice?: string;
+  language?: string;
 }
 
 export interface VoiceSourceItem {
@@ -679,6 +698,26 @@ export interface VoiceSourceItem {
   url: string;
   score?: number;
   category?: string;
+}
+
+export interface VoiceTurnRequest {
+  project_id: string;
+  transcript: string;
+  language_hint?: string;
+  history?: Array<{ role: string; content: string }>;
+  stt_meta?: Record<string, any>;
+}
+
+export interface VoiceTurnResponse {
+  should_respond: boolean;
+  reason: string;
+  found: boolean;
+  intent: string;
+  language: string;
+  display_markdown: string;
+  spoken_summary: string;
+  sources: VoiceSourceItem[];
+  timings_ms: Record<string, number>;
 }
 
 export interface VoiceSearchToolResponse {

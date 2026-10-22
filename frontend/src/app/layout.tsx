@@ -1,9 +1,8 @@
 import './globals.css';
-import Navbar from '@/components/Navbar';
 
 export const metadata = {
-  title: 'XYZ College AI & OmniAgent Platform - Universal Website AI Assistant',
-  description: 'Turn any website into an intelligent grounded AI chatbot with citations in seconds.',
+  title: 'OmniAgent AI — Turn Any Website Into an Intelligent AI Assistant',
+  description: 'Build AI-powered conversations, automate customer support, capture qualified leads, and deliver instant answers — all grounded in your own website.',
 };
 
 export default function RootLayout({
@@ -13,13 +12,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-blue-100 selection:text-blue-900">
-        <Navbar />
-        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){ try { var t = localStorage.getItem('omniagent_theme');
+            if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches))
+              document.documentElement.classList.add('dark'); } catch(e){} })();`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-[var(--bg)] text-[var(--text-1)] selection:bg-blue-500/20 antialiased">
+        <main className="min-h-screen w-full">
           {children}
         </main>
       </body>
     </html>
   );
 }
-

@@ -1,4 +1,5 @@
 import time
+import re
 import hashlib
 import json
 import datetime
@@ -11,6 +12,7 @@ from app.models.schemas import (
 )
 from app.services.llm.provider import get_llm_provider
 from app.services.web_search.search_engine import select_and_fetch_college_sources
+from app.services.web_search.voice_summary import build_spoken_summary
 
 
 def build_dynamic_college_prompt(college_name: str, base_domain: str, override_prompt: Optional[str] = None) -> str:
@@ -39,7 +41,8 @@ async def generate_college_web_search_answer(
     history: Optional[List[ChatMessage]] = None,
     include_debug: bool = True,
     db: Optional[Session] = None,
-    system_prompt_override: Optional[str] = None
+    system_prompt_override: Optional[str] = None,
+    voice_mode: bool = False
 ) -> CollegeChatResponse:
     """
     Generic Multi-College Live Web Search Execution Pipeline:
@@ -57,10 +60,20 @@ async def generate_college_web_search_answer(
     if db:
         project = db.query(CollegeWebSearchProjectDB).filter(CollegeWebSearchProjectDB.id == project_id).first()
 
-    college_name = project.college_name if project else "College / University"
-    base_domain = project.base_domain if project else "poornima.org"
-    max_sources = max(project.max_sources_per_query if project else 5, 5)
-    cache_ttl = project.cache_ttl_seconds if project else 600
+    if not project:
+        if project_id in ["proj_poornima", "poornima_config", "poornima"]:
+            college_name = "Poornima University & Colleges"
+            base_domain = "poornima.org"
+            max_sources = 5
+            cache_ttl = 600
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail=f"College project '{project_id}' not found.")
+    else:
+        college_name = project.college_name
+        base_domain = project.base_domain
+        max_sources = max(project.max_sources_per_query or 5, 5)
+        cache_ttl = project.cache_ttl_seconds or 600
 
     # 1. Check Short-Term Query Cache (10 mins TTL) - bypass if old refusal cache
     clean_query = user_message.strip()
@@ -82,6 +95,13 @@ async def generate_college_web_search_answer(
                 cached.debug_trace["processing_time_ms"] = round((time.time() - start_time) * 1000, 2)
                 debug_trace = WebSearchDebugTrace(**cached.debug_trace)
 
+            cached_spoken = getattr(cached, "spoken_summary", None) or build_spoken_summary(
+                intent=cached.detected_intent or "general",
+                college_name=college_name,
+                language="hi" if any(w in user_message.lower() for w in ["hai", "kya", "kitna", "kitni"]) else "en-IN",
+                answer_markdown=cached.answer
+            )
+
             return CollegeChatResponse(
                 project_id=project_id,
                 college_name=college_name,
@@ -90,7 +110,8 @@ async def generate_college_web_search_answer(
                 sources=citations,
                 is_live_searched=True,
                 detected_intent=cached.detected_intent,
-                debug_trace=debug_trace
+                debug_trace=debug_trace,
+                spoken_summary=cached_spoken
             )
 
     # 2. Select & Live Fetch 1-3 Approved Sources for this Project
@@ -99,7 +120,8 @@ async def generate_college_web_search_answer(
         user_message=user_message,
         history=history_dicts,
         db=db,
-        max_sources=max_sources
+        max_sources=max_sources,
+        voice_mode=voice_mode
     )
 
     detected_intent = intent_info.get("intent", "general")
@@ -122,6 +144,9 @@ async def generate_college_web_search_answer(
             cache_hit=False,
             processing_time_ms=round((time.time() - start_time) * 1000, 2)
         )
+        spoken_summary = (
+            f"I can only answer questions about {college_name} admissions, fees, courses, and hostels."
+        )
         return CollegeChatResponse(
             project_id=project_id,
             college_name=college_name,
@@ -130,12 +155,24 @@ async def generate_college_web_search_answer(
             sources=[],
             is_live_searched=False,
             detected_intent="off_topic",
-            debug_trace=debug_trace
+            debug_trace=debug_trace,
+            spoken_summary=spoken_summary
         )
 
-    # Handle Greeting
+    # Handle Greeting or Identity
     if intent_info.get("is_greeting"):
-        if system_prompt_override:
+        if detected_intent == "bot_identity":
+            answer = (
+                f"👋 **Namaste! I am the official AI Voice Counselor for {college_name}.**\n\n"
+                f"I am directly connected to the official {college_name} portal (`{base_domain}`) to provide verified information for students and parents. You can ask me about:\n"
+                f"- 🎓 **Degrees & Specializations** (B.Tech CSE/AI, MBA, BCA, MCA, etc.)\n"
+                f"- 🏛️ **Admission Criteria, Cutoffs & REAP Process**\n"
+                f"- 💰 **Fee Structure & Merit Scholarships**\n"
+                f"- 💼 **Placements, Highest Packages & Top Recruiters**\n"
+                f"- 🛏️ **Hostel Accommodation, Air-Cooled Rooms & Mess Facilities**\n\n"
+                f"How may I help you today?"
+            )
+        elif system_prompt_override:
             answer = (
                 f"👋 **Hello! Welcome to {college_name} Admissions (2026-27).**\n\n"
                 f"Which course or programme are you interested in (e.g., B.Tech CSE, MBA, BCA, B.Des, MCA)?\n\n"
@@ -182,6 +219,10 @@ async def generate_college_web_search_answer(
             cache_hit=False,
             processing_time_ms=round((time.time() - start_time) * 1000, 2)
         )
+        spoken_summary = (
+            f"Namaste! I am the official AI counselor for {college_name}. "
+            f"How can I help you with admissions, fees, or courses today?"
+        )
         return CollegeChatResponse(
             project_id=project_id,
             college_name=college_name,
@@ -190,7 +231,8 @@ async def generate_college_web_search_answer(
             sources=citations,
             is_live_searched=True,
             detected_intent="greeting",
-            debug_trace=debug_trace
+            debug_trace=debug_trace,
+            spoken_summary=spoken_summary
         )
 
     # 3. Build Grounded Context from Fetched Pages
@@ -225,9 +267,21 @@ async def generate_college_web_search_answer(
 {history_context}CURRENT USER MESSAGE:
 {user_message}
 
-CRITICAL INSTRUCTION:
-Answer the current user message accurately (2-4 sentences) using the official website context.
-DO NOT repeat questions for information (e.g. 12th marks, branch, phone number) that the student has already provided in previous turns!"""
+CRITICAL INSTRUCTIONS:
+1. Grounding: Answer accurately and thoroughly using ONLY the live official {base_domain} context provided above.
+2. If the user asks about fees, provide a comprehensive semester-wise and annual fee breakdown formatted in clean markdown tables.
+3. If the user asks about admissions, eligibility, branches, or hostels, list all relevant options and criteria in clean bullet points.
+4. DO NOT repeat questions for information that the student has already provided in previous turns.
+5. You MUST format your response into TWO clearly delimited sections:
+
+<<<TEXT_RESULT_OUTPUT>>>
+[Detailed, authoritative markdown answer for display on the screen. Include clear headings, bullet points, official numbers, and tables as applicable. Do NOT omit important fee figures or details.]
+<<<END_TEXT_RESULT_OUTPUT>>>
+
+<<<SPOKEN_SUMMARY>>>
+[A concise 1-3 sentence natural conversational spoken summary that answers the core question directly with key numbers or facts, suitable for real-time voice audio reading by GPT. NEVER include markdown symbols, asterisks, bullet points, or tables here. Pronounce numbers naturally (e.g. '1 lakh 21 thousand rupees'). Match language: if the user asked in Hindi/Hinglish, speak in natural Hindi/Hinglish; if English, speak in English.]
+<<<END_SPOKEN_SUMMARY>>>
+"""
 
     # 4. Generate Answer via LLM Provider
     llm_provider = get_llm_provider()
@@ -238,8 +292,30 @@ DO NOT repeat questions for information (e.g. 12th marks, branch, phone number) 
         override_prompt=effective_override
     )
 
-    answer = await llm_provider.generate_response(prompt=prompt, system_instruction=system_prompt)
-    answer = answer.strip()
+    raw_answer = await llm_provider.generate_response(prompt=prompt, system_instruction=system_prompt)
+    raw_answer = (raw_answer or "").strip()
+
+    text_match = re.search(r'<<<TEXT_RESULT_OUTPUT>>>(.*?)<<<END_TEXT_RESULT_OUTPUT>>>', raw_answer, re.DOTALL)
+    spoken_match = re.search(r'<<<SPOKEN_SUMMARY>>>(.*?)<<<END_SPOKEN_SUMMARY>>>', raw_answer, re.DOTALL)
+
+    if text_match:
+        answer = text_match.group(1).strip()
+    else:
+        answer = re.sub(r'<<<.*?>>>', '', raw_answer).strip()
+
+    is_hindi = any(w in user_message.lower() for w in ["hai", "kya", "kitna", "kitni", "kaise", "batao", "shulk", "kharcha", "daakhila"])
+    default_lang = "hi" if is_hindi else "en-IN"
+
+    if spoken_match:
+        spoken_summary = spoken_match.group(1).strip()
+        spoken_summary = re.sub(r'[*_#`]', '', spoken_summary).strip()
+    else:
+        spoken_summary = build_spoken_summary(
+            intent=detected_intent,
+            college_name=college_name,
+            language=default_lang,
+            answer_markdown=answer
+        )
 
     # 5. Build Debug Trace
     proc_time = round((time.time() - start_time) * 1000, 2)
@@ -276,7 +352,8 @@ DO NOT repeat questions for information (e.g. 12th marks, branch, phone number) 
                 citations=[c.dict() for c in citations_list],
                 debug_trace=debug_trace.dict() if debug_trace else {},
                 created_at=now,
-                expires_at=expires_at
+                expires_at=expires_at,
+                spoken_summary=spoken_summary
             )
             db.merge(cache_entry)
             db.commit()
@@ -291,7 +368,8 @@ DO NOT repeat questions for information (e.g. 12th marks, branch, phone number) 
         sources=citations_list,
         is_live_searched=True,
         detected_intent=detected_intent,
-        debug_trace=debug_trace
+        debug_trace=debug_trace,
+        spoken_summary=spoken_summary
     )
 
 
@@ -315,5 +393,6 @@ async def generate_poornima_web_search_answer(
         sources=res.sources,
         is_live_searched=res.is_live_searched,
         detected_intent=res.detected_intent,
-        debug_trace=res.debug_trace
+        debug_trace=res.debug_trace,
+        spoken_summary=res.spoken_summary
     )

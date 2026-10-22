@@ -732,6 +732,7 @@ class WebSearchCacheDB(Base):
     search_query = Column(String, default="")
     selected_source_ids = Column(JSON, default=list)
     answer = Column(Text, nullable=False)
+    spoken_summary = Column(Text, nullable=True, default="")
     citations = Column(JSON, default=list)
     debug_trace = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -807,6 +808,7 @@ class WebSearchChatResponse(BaseModel):
     is_live_searched: bool = True
     detected_intent: str
     debug_trace: Optional[WebSearchDebugTrace] = None
+    spoken_summary: Optional[str] = None
 
 # --- Generic Sitemap-Based College Web Search Database Models ---
 
@@ -859,6 +861,7 @@ class CollegeWebSearchCacheDB(Base):
     search_query = Column(String, default="")
     selected_source_ids = Column(JSON, default=list)
     answer = Column(Text, nullable=False)
+    spoken_summary = Column(Text, nullable=True, default="")
     citations = Column(JSON, default=list)
     debug_trace = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -935,6 +938,7 @@ class CollegeChatResponse(BaseModel):
     is_live_searched: bool = True
     detected_intent: str
     debug_trace: Optional[WebSearchDebugTrace] = None
+    spoken_summary: Optional[str] = None
 
 class WebSearchTestRequest(BaseModel):
     query: str

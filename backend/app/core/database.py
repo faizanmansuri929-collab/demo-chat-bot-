@@ -15,8 +15,16 @@ def init_db():
     try:
         with engine.connect() as conn:
             from sqlalchemy import text
-            conn.execute(text("ALTER TABLE products ADD COLUMN description TEXT;"))
-            conn.commit()
+            try:
+                conn.execute(text("ALTER TABLE products ADD COLUMN description TEXT;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE college_web_search_caches ADD COLUMN spoken_summary TEXT;"))
+                conn.commit()
+            except Exception:
+                pass
     except Exception:
         pass
 

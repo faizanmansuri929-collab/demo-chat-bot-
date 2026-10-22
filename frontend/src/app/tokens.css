@@ -1,17 +1,75 @@
-/* Design Token System: Navy University Theme */
+/* Design Token System: OmniAgent AI Palette & Custom Tokens */
 :root {
   --uai-brand: #0B2545;
   --uai-accent: #F2B54A;
-  --uai-bg: #F4F6F9;
+  --uai-bg: #F4F7FB;
   --uai-surface: #FFFFFF;
-  --uai-surface-muted: #F7F9FB;
-  --uai-border: #E3E8EF;
-  --uai-border-strong: #D5DCE6;
-  --uai-text: #1B2433;
-  --uai-text-2: #3A4556;
-  --uai-text-muted: #5A6578;
-  --uai-text-subtle: #6B7586;
-  --uai-online: #4ADE9B;
+  --uai-surface-muted: #F8FAFD;
+  --uai-border: #E3E9F2;
+  --uai-border-strong: #CBD5E4;
+  --uai-text: #0D1B2E;
+  --uai-text-2: #3D4C63;
+  --uai-text-muted: #64748B;
+  --uai-text-subtle: #8394AD;
+  --uai-online: #10B981;
   --uai-whatsapp: #25D366;
-  --uai-success: #1E7E4E;
+  --uai-success: #059669;
+
+  /* Expanded CSS variables matching standalone UI design tokens */
+  --bg: #F4F7FB;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAFD;
+  --surface-3: #EDF2F9;
+  --border: #E3E9F2;
+  --border-strong: #CBD5E4;
+  --text-1: #0D1B2E;
+  --text-2: #3D4C63;
+  --text-3: #64748B;
+  --primary: #2563EB;
+  --primary-600: #1D4ED8;
+  --primary-soft: #EAF1FE;
+  --teal: #0D9488;
+  --teal-soft: #E4F7F3;
+  --violet: #7C3AED;
+  --violet-soft: #F1EBFE;
+  --success: #059669;
+  --danger: #DC2626;
+  --amber: #B45309;
+  --navy-900: #0A1B33;
+  --navy-950: #060F1F;
+  --ring: rgba(37,99,235,.30);
+  --shadow-sm: 0 1px 2px rgba(13,27,46,.06);
+  --shadow-md: 0 6px 18px -6px rgba(13,27,46,.14);
+  --shadow-lg: 0 22px 44px -16px rgba(13,27,46,.22);
+  --nav-glass: rgba(255,255,255,.82);
+}
+
+html.dark {
+  --uai-bg: #060D1A;
+  --uai-surface: #0B1524;
+  --uai-surface-muted: #0F1B2E;
+  --uai-border: #1D2D47;
+  --uai-border-strong: #2B405F;
+  --uai-text: #E9EFF9;
+  --uai-text-2: #B7C4D9;
+  --uai-text-muted: #8394AD;
+
+  --bg: #060D1A;
+  --surface: #0B1524;
+  --surface-2: #0F1B2E;
+  --surface-3: #152438;
+  --border: #1D2D47;
+  --border-strong: #2B405F;
+  --text-1: #E9EFF9;
+  --text-2: #B7C4D9;
+  --text-3: #8394AD;
+  --primary: #5B8DEF;
+  --primary-600: #4F7BE6;
+  --primary-soft: rgba(91,141,239,.14);
+  --teal: #2DD4BF;
+  --teal-soft: rgba(45,212,191,.12);
+  --violet: #A78BFA;
+  --violet-soft: rgba(167,139,250,.12);
+  --nav-glass: rgba(6,13,26,.82);
+  --shadow-lg: 0 22px 44px -16px rgba(0,0,0,.55);
 }

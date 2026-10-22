@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
+from app.core.config import settings
 from app.models.schemas import WebSearchSourceDB, CollegeWebSourceDB, CollegeWebSearchProjectDB
 from app.services.web_search.allowlist import is_allowed_domain_url
 
@@ -78,10 +79,11 @@ def is_url_allowed_for_domain(url: str, base_domain: Optional[str] = None) -> bo
             
         if base_domain:
             clean_base = base_domain.lower().replace("http://", "").replace("https://", "").replace("www.", "").strip("/")
-            # Allow exact match, subdomain match, or domain containment
-            if hostname == clean_base or hostname.endswith("." + clean_base) or clean_base in hostname:
+            # TASK A: exact host or true subdomain ONLY (no substring match)
+            if hostname == clean_base or hostname.endswith("." + clean_base):
                 return True
-        
+            return False  # explicitly reject: "notpoornima.org" must NOT match "poornima.org"
+
         # Fallback to Poornima allowlist check if base_domain not specified
         return is_allowed_domain_url(url)
     except Exception:
@@ -135,7 +137,8 @@ async def fetch_college_page(
 
     # 3. Live Fetch via HTTP
     try:
-        async with httpx.AsyncClient(timeout=15.0, verify=False, follow_redirects=True) as client:
+        tls_verify = getattr(settings, "VERIFY_SSL", True)
+        async with httpx.AsyncClient(timeout=15.0, verify=tls_verify, follow_redirects=True) as client:
             resp = await client.get(url, headers=HEADERS)
             if resp.status_code == 200:
                 raw_html = resp.text
