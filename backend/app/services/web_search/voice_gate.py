@@ -104,6 +104,21 @@ async def gate_transcript(
     if not text:
         return _silent("empty", "Empty transcript.")
 
+    # 1b. Bare URL / domain echo rejection (prevents AI speaker loopback from triggering search)
+    clean_domain = base_domain.lower().replace("https://", "").replace("http://", "").replace("www.", "").strip("/")
+    clean_college = college_name.lower().replace("https://", "").replace("http://", "").replace("www.", "").strip("/")
+    clean_lower = lower.replace("https://", "").replace("http://", "").replace("www.", "").strip("/")
+
+    if (
+        re.match(r"^https?://[^\s]+$", text.strip(), re.I)
+        or re.match(r"^www\.[^\s]+$", text.strip(), re.I)
+        or clean_lower == clean_domain
+        or clean_lower == clean_college
+        or clean_lower.replace(" ", "") == clean_domain.replace(" ", "")
+        or clean_lower.replace(" ", "") == clean_college.replace(" ", "")
+    ):
+        return _silent("domain_echo", "Bare URL or domain echo detected.")
+
     # 2. Bad script (non-Latin, non-Devanagari dominant)
     script = _dominant_script(text)
     if script == "other":

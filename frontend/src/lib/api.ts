@@ -616,6 +616,19 @@ export const api = {
     return res.data;
   },
 
+  createTranscriptionSession: async (
+    projectId: string,
+    model: string = 'gpt-live-transcribe',
+    language: string = 'en-IN'
+  ): Promise<TranscriptionSessionResponse> => {
+    const res = await axios.post(`${API_BASE}/college-voice/transcription-session`, {
+      project_id: projectId,
+      model,
+      language
+    });
+    return res.data;
+  },
+
   executeVoiceTurn: async (payload: VoiceTurnRequest): Promise<VoiceTurnResponse> => {
     const res = await axios.post(`${API_BASE}/college-voice/turn`, payload);
     return res.data;
@@ -691,6 +704,18 @@ export interface VoiceSessionResponse {
   model?: string;
   voice?: string;
   language?: string;
+}
+
+export interface TranscriptionSessionResponse {
+  client_secret: {
+    value: string;
+    expires_at?: number;
+  };
+  session_id: string;
+  project_id: string;
+  college_name: string;
+  base_domain: string;
+  model: string;
 }
 
 export interface VoiceSourceItem {

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import {
   Mic, MicOff, Radio, ShieldCheck, FileText, Square,
   MessageSquare, AlertTriangle, ExternalLink,
-  Volume2, VolumeX, Send, Loader2, Sparkles, Building2, Globe
+  Volume2, VolumeX, Send, Loader2, Sparkles, Building2, Globe,
+  Activity, Check, Layers, BarChart2, SplitSquareVertical, ArrowRight, RefreshCw, Cpu
 } from 'lucide-react';
 import DashboardShell from '@/components/DashboardShell';
 import { MarkdownContent } from '@/components/MarkdownContent';
@@ -28,6 +29,121 @@ const VOICE_OPTIONS = [
   { id: 'coral', label: 'Coral (Friendly Counselor)' },
   { id: 'sage', label: 'Sage (Calm & Academic)' },
   { id: 'shimmer', label: 'Shimmer (Bright & Helpful)' },
+];
+
+type TranscriptionTestMode = 'baseline' | 'candidate' | 'native' | 'compare';
+
+interface TranscriptMetric {
+  partialText: string;
+  finalText: string;
+  firstDeltaMs: number | null;
+  completionMs: number | null;
+  speechDurationMs: number | null;
+  isStreaming: boolean;
+  isEmpty: boolean;
+  error?: string | null;
+}
+
+interface WerResult {
+  referenceWords: number;
+  hypothesisWords: number;
+  substitutions: number;
+  deletions: number;
+  insertions: number;
+  werPercent: number;
+}
+
+function computeWER(reference: string, hypothesis: string): WerResult {
+  const clean = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()?]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const refWords = clean(reference).split(' ').filter(Boolean);
+  const hypWords = clean(hypothesis).split(' ').filter(Boolean);
+
+  const n = refWords.length;
+  const m = hypWords.length;
+
+  if (n === 0) {
+    return {
+      referenceWords: 0,
+      hypothesisWords: m,
+      substitutions: 0,
+      deletions: 0,
+      insertions: m,
+      werPercent: m === 0 ? 0 : 100,
+    };
+  }
+
+  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
+  for (let i = 0; i <= n; i++) dp[i][0] = i;
+  for (let j = 0; j <= m; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      if (refWords[i - 1] === hypWords[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = Math.min(
+          dp[i - 1][j - 1] + 1, // substitution
+          dp[i - 1][j] + 1,     // deletion
+          dp[i][j - 1] + 1      // insertion
+        );
+      }
+    }
+  }
+
+  let i = n;
+  let j = m;
+  let substitutions = 0;
+  let deletions = 0;
+  let insertions = 0;
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && refWords[i - 1] === hypWords[j - 1]) {
+      i--;
+      j--;
+    } else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) {
+      substitutions++;
+      i--;
+      j--;
+    } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
+      deletions++;
+      i--;
+    } else if (j > 0 && dp[i][j] === dp[i][j - 1] + 1) {
+      insertions++;
+      j--;
+    } else {
+      break;
+    }
+  }
+
+  const totalErrors = substitutions + deletions + insertions;
+  const wer = (totalErrors / n) * 100;
+  return {
+    referenceWords: n,
+    hypothesisWords: m,
+    substitutions,
+    deletions,
+    insertions,
+    werPercent: Math.round(wer * 10) / 10,
+  };
+}
+
+const REPRESENTATIVE_QUERIES = [
+  { id: 'en', label: '1. English (Fees)', text: 'What is the B.Tech CSE fee at Poornima University?' },
+  { id: 'hi_roman', label: '2. Roman Hinglish', text: 'Poornima University mein B.Tech CSE ki fees kitni hai?' },
+  { id: 'hi_dev', label: '3. Hindi Devanagari', text: 'मुझे बीटेक कंप्यूटर साइंस की फीस बताइए।' },
+  { id: 'tech', label: '4. Mixed Technical', text: 'B.Tech Artificial Intelligence and Data Science ka admission process kya hai?' },
+  { id: 'num', label: '5. Numbers / Lakhs', text: 'First year fee one lakh twenty thousand rupees hai kya?' },
+  { id: 'acronym', label: '6. Acronyms (REAP/CUET)', text: 'REAP, CSE, AI aur CUET ke baare mein batao.' },
+  { id: 'followup', label: '7. Follow-up Turn', text: 'Aur hostel fees kitni hai?' },
+  { id: 'long', label: '8. Pauses & Natural Speech', text: 'Mujhe admission lena hai lekin mujhe pehle scholarship aur hostel ka fee structure dekhna hai' },
+  { id: 'bilingual', label: '9. Bilingual Engineering', text: 'Civil and Mechanical engineering seats available hai kya?' },
+  { id: 'transport', label: '10. Campus Services', text: 'Transport facility charges aur bus routes bataiye' },
 ];
 
 export default function CollegeVoiceSearchPage() {
@@ -66,6 +182,7 @@ export default function CollegeVoiceSearchPage() {
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const isManualMutedRef = useRef<boolean>(false);
   const isSpeakerMutedRef = useRef<boolean>(false);
+  const isPttHoldingRef = useRef<boolean>(false);
   const utteranceRef = useRef<any>(null);
   const activeProjectIdRef = useRef<string>(activeProjectId);
   const langRef = useRef<'en-IN' | 'hi'>(lang);
@@ -81,6 +198,83 @@ export default function CollegeVoiceSearchPage() {
   const completedItemIdsRef = useRef<Set<string>>(new Set());
   // Realtime audio response state tracking
   const isResponseActiveRef = useRef<boolean>(false);
+  const unmuteTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Voice Session State Ref for Web Speech lifecycle
+  const voiceStateRef = useRef<'off' | 'connecting' | 'live' | 'error'>(voiceState);
+
+  // STT Engine State - Web Speech API set as primary baseline
+  const [transcriptionMode, setTranscriptionMode] = useState<TranscriptionTestMode>('native');
+  const transcriptionModeRef = useRef<TranscriptionTestMode>('native');
+  const [activeChatSource, setActiveChatSource] = useState<'baseline' | 'candidate' | 'native'>('native');
+  const activeChatSourceRef = useRef<'baseline' | 'candidate' | 'native'>('native');
+  const [showDevPanel, setShowDevPanel] = useState<boolean>(false);
+  const [referenceText, setReferenceText] = useState<string>('');
+
+  // Candidate (gpt-live-transcribe) WebRTC State & Refs
+  const candidatePcRef = useRef<RTCPeerConnection | null>(null);
+  const candidateDcRef = useRef<RTCDataChannel | null>(null);
+  const [candidateStatus, setCandidateStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [candidateError, setCandidateError] = useState<string | null>(null);
+
+  // Native Web Speech Recognition Ref & Browser Compatibility
+  const recognitionRef = useRef<any>(null);
+  const [hasNativeSpeechSupport, setHasNativeSpeechSupport] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const supported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+      setHasNativeSpeechSupport(supported);
+    }
+  }, []);
+
+  // Transcription Timing & Metric State
+  const speechStartTimeRef = useRef<number | null>(null);
+  const [baselineMetric, setBaselineMetric] = useState<TranscriptMetric>({
+    partialText: '',
+    finalText: '',
+    firstDeltaMs: null,
+    completionMs: null,
+    speechDurationMs: null,
+    isStreaming: false,
+    isEmpty: false,
+  });
+  const [candidateMetric, setCandidateMetric] = useState<TranscriptMetric>({
+    partialText: '',
+    finalText: '',
+    firstDeltaMs: null,
+    completionMs: null,
+    speechDurationMs: null,
+    isStreaming: false,
+    isEmpty: false,
+  });
+  const [nativeMetric, setNativeMetric] = useState<TranscriptMetric>({
+    partialText: '',
+    finalText: '',
+    firstDeltaMs: null,
+    completionMs: null,
+    speechDurationMs: null,
+    isStreaming: false,
+    isEmpty: false,
+  });
+
+  useEffect(() => {
+    transcriptionModeRef.current = transcriptionMode;
+    if (transcriptionMode === 'candidate') {
+      activeChatSourceRef.current = 'candidate';
+      setActiveChatSource('candidate');
+    } else if (transcriptionMode === 'native') {
+      activeChatSourceRef.current = 'native';
+      setActiveChatSource('native');
+    } else if (transcriptionMode === 'baseline') {
+      activeChatSourceRef.current = 'baseline';
+      setActiveChatSource('baseline');
+    }
+  }, [transcriptionMode]);
+
+  useEffect(() => {
+    activeChatSourceRef.current = activeChatSource;
+  }, [activeChatSource]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -99,6 +293,10 @@ export default function CollegeVoiceSearchPage() {
   }, [voiceMode]);
 
   useEffect(() => {
+    voiceStateRef.current = voiceState;
+  }, [voiceState]);
+
+  useEffect(() => {
     micProfileRef.current = micProfile;
   }, [micProfile]);
 
@@ -106,8 +304,15 @@ export default function CollegeVoiceSearchPage() {
     bargeInRef.current = bargeIn;
   }, [bargeIn]);
 
+  useEffect(() => {
+    isPttHoldingRef.current = isPttHolding;
+  }, [isPttHolding]);
+
   const activeProject = projects.find((p) => p.id === activeProjectId);
-  const collegeName = activeProject?.college_name || 'College / University';
+  const rawCollegeName = activeProject?.college_name || 'College / University';
+  const collegeName = rawCollegeName.startsWith('http://') || rawCollegeName.startsWith('https://')
+    ? (activeProject?.base_domain || rawCollegeName.replace(/^https?:\/\//, '').replace(/\/+$/, ''))
+    : rawCollegeName;
   const domain = activeProject?.base_domain || 'college.edu';
 
   // Load real college projects on mount
@@ -142,6 +347,10 @@ export default function CollegeVoiceSearchPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (unmuteTimerRef.current) {
+        clearTimeout(unmuteTimerRef.current);
+        unmuteTimerRef.current = null;
+      }
       stopVoiceSession();
     };
   }, []);
@@ -157,9 +366,37 @@ export default function CollegeVoiceSearchPage() {
 
   // Stop WebRTC session cleanly
   const stopVoiceSession = useCallback(() => {
+    if (unmuteTimerRef.current) {
+      clearTimeout(unmuteTimerRef.current);
+      unmuteTimerRef.current = null;
+    }
     inFlightItemIdsRef.current.clear();
     completedItemIdsRef.current.clear();
     isResponseActiveRef.current = false;
+
+    // Teardown candidate WebRTC session if active
+    if (candidateDcRef.current) {
+      try {
+        candidateDcRef.current.close();
+      } catch (e) {}
+      candidateDcRef.current = null;
+    }
+    if (candidatePcRef.current) {
+      try {
+        candidatePcRef.current.close();
+      } catch (e) {}
+      candidatePcRef.current = null;
+    }
+    setCandidateStatus('idle');
+
+    // Teardown native Web Speech if running
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      recognitionRef.current = null;
+    }
+
     if (dataChannelRef.current) {
       try {
         dataChannelRef.current.close();
@@ -227,17 +464,30 @@ export default function CollegeVoiceSearchPage() {
       }
 
       utterance.onstart = () => {
+        isResponseActiveRef.current = true;
         setAgentState('speaking');
       };
 
       utterance.onend = () => {
+        isResponseActiveRef.current = false;
         setAgentState('idle');
         utteranceRef.current = null;
+        if (voiceModeRef.current !== 'push_to_talk' && voiceStateRef.current === 'live' && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {}
+        }
       };
 
       utterance.onerror = () => {
+        isResponseActiveRef.current = false;
         setAgentState('idle');
         utteranceRef.current = null;
+        if (voiceModeRef.current !== 'push_to_talk' && voiceStateRef.current === 'live' && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {}
+        }
       };
 
       window.speechSynthesis.speak(utterance);
@@ -247,7 +497,241 @@ export default function CollegeVoiceSearchPage() {
     }
   }, []);
 
-  // Handle incoming OpenAI Realtime WebRTC DataChannel events
+  // Shared executor for final transcript (Web Speech API baseline / WebRTC Cloud fallback)
+  const processFinalTranscript = useCallback(async (userText: string, msgId: string, source: 'baseline' | 'candidate' | 'native') => {
+    // Deduplication check: prevent repeated processing of the same audio transcript event
+    if (inFlightItemIdsRef.current.has(msgId) || completedItemIdsRef.current.has(msgId)) {
+      console.warn(`[${source}] Skipping duplicate transcript event:`, msgId);
+      return;
+    }
+
+    // Anti-echo filter: ignore bare URLs, domain names, or college name echoes from speakers
+    const cleanT = userText.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '').trim();
+    const cleanD = (domain || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '').trim();
+    const cleanC = (collegeName || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '').trim();
+
+    // Whisper silence hallucinations filter (e.g., model outputs "Thank you." on zero audio)
+    const WHISPER_HALLUCINATIONS = new Set([
+      'thank you.',
+      'thank you',
+      'thanks.',
+      'thanks',
+      'thanks for watching.',
+      'thanks for watching',
+      'subtitles by the amara.org community',
+      'you',
+      'you.',
+      'bye.',
+      'bye',
+      'okay.',
+      'okay',
+    ]);
+    if (WHISPER_HALLUCINATIONS.has(cleanT)) {
+      console.warn(`[${source}] Filtered Whisper silence hallucination artifact:`, userText);
+      inFlightItemIdsRef.current.delete(msgId);
+      completedItemIdsRef.current.add(msgId);
+      setAgentState('idle');
+      setStatusText('Live Voice Call Connected');
+      return;
+    }
+
+    if (
+      /^https?:\/\/[^\s]+$/i.test(userText) ||
+      /^www\.[^\s]+$/i.test(userText) ||
+      cleanT === cleanD ||
+      cleanT === cleanC ||
+      cleanT.replace(/\s+/g, '') === cleanD.replace(/\s+/g, '') ||
+      cleanT.replace(/\s+/g, '') === cleanC.replace(/\s+/g, '')
+    ) {
+      console.warn(`[${source}] Ignored self-domain / URL echo transcript:`, userText);
+      inFlightItemIdsRef.current.delete(msgId);
+      completedItemIdsRef.current.add(msgId);
+      return;
+    }
+
+    inFlightItemIdsRef.current.add(msgId);
+    if (completedItemIdsRef.current.size > 100) {
+      completedItemIdsRef.current.clear();
+    }
+
+    // 1. Show exact verbatim user speech transcript
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === msgId)) return prev;
+      return [
+        ...prev,
+        {
+          id: msgId,
+          role: 'user',
+          text: userText,
+        },
+      ];
+    });
+
+    // 2. Set thinking & show "Checking official website..."
+    setAgentState('thinking');
+    setActiveSearchQuery(userText);
+    setStatusText('Checking official website…');
+
+    // 3. Build bounded conversation history from messagesRef
+    const historyTurns = messagesRef.current
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.id !== msgId)
+      .slice(-6)
+      .map((m) => ({
+        role: m.role,
+        content: m.role === 'user' ? (m.text || '') : (m.markdown || m.spokenSummary || ''),
+      }))
+      .filter((h) => h.content.trim().length > 0);
+
+    try {
+      // 4. Call POST /college-voice/turn
+      const turnRes = await api.executeVoiceTurn({
+        project_id: activeProjectIdRef.current,
+        transcript: userText,
+        language_hint: langRef.current,
+        history: historyTurns,
+        stt_meta: { source, model: source === 'native' ? 'web-speech-api' : (source === 'candidate' ? 'gpt-live-transcribe' : 'whisper-1') }
+      });
+
+      setActiveSearchQuery(null);
+
+      // 5. Gating handling: if should_respond is false, keep user bubble, do NOT speak or create assistant card
+      if (!turnRes.should_respond) {
+        setAgentState('idle');
+        setStatusText(voiceState === 'live' ? 'Live Voice Call Connected' : 'Ready / idle');
+        if (voiceModeRef.current !== 'push_to_talk' && !isManualMutedRef.current) {
+          setMicrophoneMuted(false);
+        }
+        completedItemIdsRef.current.add(msgId);
+        inFlightItemIdsRef.current.delete(msgId);
+        return;
+      }
+
+      const detailedAnswer = turnRes.display_markdown || 'Information verified from official website.';
+      const spokenSummary = turnRes.spoken_summary || 'Here is the verified information.';
+      const sources = turnRes.sources || [];
+      const detectedIntent = turnRes.intent || 'general';
+
+      // 6. Render full assistant card with detailed markdown and official sources
+      const assistantTurnId = `turn-ai-${msgId}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantTurnId,
+          role: 'assistant',
+          markdown: detailedAnswer,
+          spokenSummary: spokenSummary,
+          sources: sources,
+          detectedIntent: detectedIntent,
+        },
+      ]);
+
+      // 7. Voice response: speak ONLY spoken_summary verbatim
+      const activeDc = dataChannelRef.current;
+      if (activeDc && activeDc.readyState === 'open' && spokenSummary) {
+        setAgentState('speaking');
+        if (!bargeInRef.current) {
+          setMicrophoneMuted(true);
+        }
+        try {
+          if (isResponseActiveRef.current) {
+            try {
+              activeDc.send(JSON.stringify({ type: 'response.cancel' }));
+            } catch (e) {}
+            isResponseActiveRef.current = false;
+          }
+          activeDc.send(
+            JSON.stringify({
+              type: 'response.create',
+              response: {
+                conversation: 'none',
+                instructions: `You are an audio text-to-speech reader. Speak the following text aloud word-for-word verbatim in a warm, polite Indian accent. Do not greet, do not add filler or commentary, do not answer questions on your own, and do not change any words:\n"${spokenSummary.replace(/"/g, "'")}"`,
+              },
+            })
+          );
+        } catch (e) {
+          speakWithSynthesis(spokenSummary, langRef.current);
+        }
+      } else if (spokenSummary) {
+        speakWithSynthesis(spokenSummary, langRef.current);
+      } else {
+        setStatusText('Live Voice Call Connected');
+      }
+    } catch (err: any) {
+      console.error('Voice turn execution error:', err);
+      setActiveSearchQuery(null);
+      setAgentState('idle');
+      setStatusText('Live Voice Call Connected');
+      if (voiceModeRef.current !== 'push_to_talk' && !isManualMutedRef.current) {
+        setMicrophoneMuted(false);
+      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          role: 'system',
+          tone: 'amber',
+          markdown: 'Could not fetch details from the college website. Please try asking again.',
+        },
+      ]);
+    } finally {
+      completedItemIdsRef.current.add(msgId);
+      inFlightItemIdsRef.current.delete(msgId);
+    }
+  }, [collegeName, domain, setMicrophoneMuted, speakWithSynthesis, voiceState]);
+
+  // Handle incoming OpenAI Candidate (gpt-live-transcribe) DataChannel events
+  const handleCandidateEvent = useCallback((event: any) => {
+    const type = event.type;
+    if (!type) return;
+
+    switch (type) {
+      case 'conversation.item.input_audio_transcription.delta': {
+        const delta = event.delta || '';
+        const now = Date.now();
+        setCandidateMetric((prev) => ({
+          ...prev,
+          partialText: prev.partialText + delta,
+          firstDeltaMs: prev.firstDeltaMs ?? (speechStartTimeRef.current ? now - speechStartTimeRef.current : null),
+          isStreaming: true,
+        }));
+        break;
+      }
+
+      case 'conversation.item.input_audio_transcription.completed': {
+        const userText = (event.transcript || '').trim();
+        const msgId = event.item_id || `turn-cand-${Date.now()}`;
+        const now = Date.now();
+        const completionMs = speechStartTimeRef.current ? now - speechStartTimeRef.current : null;
+
+        setCandidateMetric((prev) => ({
+          ...prev,
+          finalText: userText,
+          completionMs,
+          isStreaming: false,
+          isEmpty: !userText,
+        }));
+
+        // If candidate is active chat source, process for main chat & backend search
+        if (
+          transcriptionModeRef.current === 'candidate' ||
+          (transcriptionModeRef.current === 'compare' && activeChatSourceRef.current === 'candidate')
+        ) {
+          processFinalTranscript(userText, msgId, 'candidate');
+        }
+        break;
+      }
+
+      case 'error':
+        console.warn('[Candidate Event Error]', event.error);
+        setCandidateError(event.error?.message || 'Candidate Realtime transcription error');
+        break;
+
+      default:
+        break;
+    }
+  }, [processFinalTranscript]);
+
+  // Handle incoming OpenAI Realtime WebRTC DataChannel events (Baseline)
   const handleRealtimeEvent = useCallback(async (realtimeEvent: any, dc: RTCDataChannel) => {
     const type = realtimeEvent.type;
     if (!type) return;
@@ -258,8 +742,35 @@ export default function CollegeVoiceSearchPage() {
         break;
 
       case 'input_audio_buffer.speech_started':
+        speechStartTimeRef.current = Date.now();
+        setBaselineMetric({
+          partialText: '',
+          finalText: '',
+          firstDeltaMs: null,
+          completionMs: null,
+          speechDurationMs: null,
+          isStreaming: true,
+          isEmpty: false,
+        });
+        setCandidateMetric({
+          partialText: '',
+          finalText: '',
+          firstDeltaMs: null,
+          completionMs: null,
+          speechDurationMs: null,
+          isStreaming: true,
+          isEmpty: false,
+        });
         setAgentState('listening');
         setLiveAiSubtitle('');
+
+        // Synchronize candidate buffer clear
+        if (candidateDcRef.current && candidateDcRef.current.readyState === 'open') {
+          try {
+            candidateDcRef.current.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+          } catch (e) {}
+        }
+
         if (bargeInRef.current && isResponseActiveRef.current) {
           try {
             dc.send(JSON.stringify({ type: 'response.cancel' }));
@@ -270,144 +781,52 @@ export default function CollegeVoiceSearchPage() {
 
       case 'input_audio_buffer.speech_stopped':
         setAgentState('thinking');
+        // Synchronously commit candidate audio buffer if enough speech was captured (>=150ms)
+        {
+          const speechDur = speechStartTimeRef.current ? Date.now() - speechStartTimeRef.current : 0;
+          if (candidateDcRef.current && candidateDcRef.current.readyState === 'open') {
+            try {
+              if (speechDur >= 150) {
+                candidateDcRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+              } else {
+                // Discard sub-150ms noise click/pop to avoid OpenAI buffer too small error
+                candidateDcRef.current.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+              }
+            } catch (e) {}
+          }
+        }
         break;
+
+      case 'conversation.item.input_audio_transcription.delta': {
+        const delta = realtimeEvent.delta || '';
+        const now = Date.now();
+        setBaselineMetric((prev) => ({
+          ...prev,
+          partialText: prev.partialText + delta,
+          firstDeltaMs: prev.firstDeltaMs ?? (speechStartTimeRef.current ? now - speechStartTimeRef.current : null),
+          isStreaming: true,
+        }));
+        break;
+      }
 
       case 'conversation.item.input_audio_transcription.completed': {
         const userText = (realtimeEvent.transcript || '').trim();
-        if (!userText) break;
-
         const msgId = realtimeEvent.item_id || `turn-${Date.now()}`;
+        const now = Date.now();
+        const completionMs = speechStartTimeRef.current ? now - speechStartTimeRef.current : null;
 
-        // Deduplication check: prevent repeated processing of the same audio transcript event
-        if (inFlightItemIdsRef.current.has(msgId) || completedItemIdsRef.current.has(msgId)) {
-          console.warn('[Realtime] Skipping duplicate transcript event:', msgId);
-          break;
-        }
-        inFlightItemIdsRef.current.add(msgId);
-        if (completedItemIdsRef.current.size > 100) {
-          completedItemIdsRef.current.clear();
-        }
+        setBaselineMetric((prev) => ({
+          ...prev,
+          finalText: userText,
+          completionMs,
+          isStreaming: false,
+          isEmpty: !userText,
+        }));
 
-        // 1. Show exact verbatim user speech transcript (no emoji/text alteration, no duplicate bubbles)
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msgId)) return prev;
-          return [
-            ...prev,
-            {
-              id: msgId,
-              role: 'user',
-              text: userText,
-            },
-          ];
-        });
-
-        // 2. Set thinking & show "Checking official website..."
-        setAgentState('thinking');
-        setActiveSearchQuery(userText);
-        setStatusText('Checking official website…');
-
-        // 3. Build bounded conversation history from messagesRef (excluding this current message)
-        const historyTurns = messagesRef.current
-          .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.id !== msgId)
-          .slice(-6)
-          .map((m) => ({
-            role: m.role,
-            content: m.role === 'user' ? (m.text || '') : (m.markdown || m.spokenSummary || ''),
-          }))
-          .filter((h) => h.content.trim().length > 0);
-
-        try {
-          // 4. Call POST /college-voice/turn (microphone flow with speech gate)
-          const turnRes = await api.executeVoiceTurn({
-            project_id: activeProjectIdRef.current,
-            transcript: userText,
-            language_hint: langRef.current,
-            history: historyTurns,
-          });
-
-          setActiveSearchQuery(null);
-
-          // 5. Gating handling: if should_respond is false, keep user bubble, do NOT speak or create assistant card
-          if (!turnRes.should_respond) {
-            setAgentState('idle');
-            setStatusText(voiceState === 'live' ? 'Live Voice Call Connected' : 'Ready / idle');
-            if (voiceModeRef.current !== 'push_to_talk' && !isManualMutedRef.current) {
-              setMicrophoneMuted(false);
-            }
-            completedItemIdsRef.current.add(msgId);
-            inFlightItemIdsRef.current.delete(msgId);
-            break;
-          }
-
-          const detailedAnswer = turnRes.display_markdown || 'Information verified from official website.';
-          const spokenSummary = turnRes.spoken_summary || 'Here is the verified information.';
-          const sources = turnRes.sources || [];
-          const detectedIntent = turnRes.intent || 'general';
-
-          // 6. Render full assistant card with detailed markdown and official sources
-          const assistantTurnId = `turn-ai-${msgId}`;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: assistantTurnId,
-              role: 'assistant',
-              markdown: detailedAnswer,
-              spokenSummary: spokenSummary,
-              sources: sources,
-              detectedIntent: detectedIntent,
-            },
-          ]);
-
-          // 7. Voice response: speak ONLY spoken_summary verbatim
-          if (dc.readyState === 'open' && spokenSummary) {
-            setAgentState('speaking');
-            if (!bargeInRef.current) {
-              setMicrophoneMuted(true);
-            }
-            try {
-              if (isResponseActiveRef.current) {
-                try {
-                  dc.send(JSON.stringify({ type: 'response.cancel' }));
-                } catch (e) {}
-                isResponseActiveRef.current = false;
-              }
-              dc.send(
-                JSON.stringify({
-                  type: 'response.create',
-                  response: {
-                    conversation: 'none',
-                    instructions: `You are an audio text-to-speech reader. Speak the following text aloud word-for-word verbatim in a warm, polite Indian accent. Do not greet, do not add filler or commentary, do not answer questions on your own, and do not change any words:\n"${spokenSummary.replace(/"/g, "'")}"`,
-                  },
-                })
-              );
-            } catch (e) {
-              speakWithSynthesis(spokenSummary, langRef.current);
-            }
-          } else if (spokenSummary) {
-            speakWithSynthesis(spokenSummary, langRef.current);
-          } else {
-            setStatusText('Live Voice Call Connected');
-          }
-        } catch (err: any) {
-          console.error('Voice turn execution error:', err);
-          setActiveSearchQuery(null);
-          setAgentState('idle');
-          setStatusText('Live Voice Call Connected');
-          if (voiceModeRef.current !== 'push_to_talk' && !isManualMutedRef.current) {
-            setMicrophoneMuted(false);
-          }
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `err-${Date.now()}`,
-              role: 'system',
-              tone: 'amber',
-              markdown: 'Could not fetch details from the college website. Please try asking again.',
-            },
-          ]);
-        } finally {
-          completedItemIdsRef.current.add(msgId);
-          inFlightItemIdsRef.current.delete(msgId);
+        // If native speech recognition is not supported in this browser, process WebRTC fallback transcript
+        const hasSpeech = typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
+        if (!hasSpeech || transcriptionModeRef.current === 'baseline') {
+          processFinalTranscript(userText, msgId, 'baseline');
         }
         break;
       }
@@ -422,7 +841,7 @@ export default function CollegeVoiceSearchPage() {
       case 'response.audio.delta':
         isResponseActiveRef.current = true;
         setAgentState('speaking');
-        if (!bargeInRef.current) {
+        if (voiceModeRef.current === 'push_to_talk') {
           setMicrophoneMuted(true);
         }
         break;
@@ -432,7 +851,7 @@ export default function CollegeVoiceSearchPage() {
         isResponseActiveRef.current = true;
         const delta = realtimeEvent.delta || '';
         setAgentState('speaking');
-        if (!bargeInRef.current) {
+        if (voiceModeRef.current === 'push_to_talk') {
           setMicrophoneMuted(true);
         }
         setLiveAiSubtitle((prev) => prev + delta);
@@ -447,15 +866,32 @@ export default function CollegeVoiceSearchPage() {
       case 'response.output_audio.done':
       case 'response.audio.done':
       case 'response.done':
-        isResponseActiveRef.current = false;
-        setAgentState('idle');
-        setStatusText('Live Voice Call Connected');
-        // Unmute microphone after assistant finishes speaking (unless PTT or manually muted)
-        if (voiceModeRef.current === 'push_to_talk') {
-          setMicrophoneMuted(true);
-        } else if (!isManualMutedRef.current) {
-          setMicrophoneMuted(false);
+        // Immediately clear residual buffer on data channel to prevent echo ingestion
+        if (dc && dc.readyState === 'open') {
+          try {
+            dc.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+          } catch (e) {}
         }
+        if (unmuteTimerRef.current) {
+          clearTimeout(unmuteTimerRef.current);
+        }
+        // Give 750ms buffer for device speakers to finish playing remote audio before opening mic
+        unmuteTimerRef.current = setTimeout(() => {
+          isResponseActiveRef.current = false;
+          setAgentState('idle');
+          setStatusText('Live Voice Call Connected');
+          if (voiceModeRef.current === 'push_to_talk') {
+            setMicrophoneMuted(true);
+          } else if (!isManualMutedRef.current) {
+            setMicrophoneMuted(false);
+          }
+          // Resume speech recognition in hands-free mode if call is still live
+          if (voiceModeRef.current !== 'push_to_talk' && voiceStateRef.current === 'live' && recognitionRef.current) {
+            try {
+              recognitionRef.current.start();
+            } catch (e) {}
+          }
+        }, 750);
         break;
 
       case 'error':
@@ -557,8 +993,9 @@ export default function CollegeVoiceSearchPage() {
         }
       };
 
-      // Ensure bidirectional audio is advertised in WebRTC offer
-      pc.addTransceiver('audio', { direction: 'sendrecv' });
+      // Add local microphone track (creates single primary audio transceiver)
+      const audioTrack = stream.getAudioTracks()[0];
+      pc.addTrack(audioTrack, stream);
 
       // Play remote audio from OpenAI Realtime
       pc.ontrack = (e) => {
@@ -574,10 +1011,6 @@ export default function CollegeVoiceSearchPage() {
         }
       };
 
-      // Add local microphone track
-      const audioTrack = stream.getAudioTracks()[0];
-      pc.addTrack(audioTrack, stream);
-
       // 4. DataChannel
       const dc = pc.createDataChannel('oai-events');
       dataChannelRef.current = dc;
@@ -592,6 +1025,7 @@ export default function CollegeVoiceSearchPage() {
 
         // Configure session with correct modalities and voice parameters
         try {
+          const hasSpeechRecognition = typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
           const collegePrompt = `${sessionData.college_name || collegeName}, Poornima University, Jaipur, B.Tech, BTech, M.Tech, BCA, MCA, MBA, CSE, AI, Data Science, Mechanical, Civil, Electrical, hostel fees, mess, tuition fee, admission, eligibility, scholarship, REAP, JEE, CUET`;
           const sessionUpdateMsg = {
             type: 'session.update',
@@ -601,12 +1035,14 @@ export default function CollegeVoiceSearchPage() {
               output_modalities: ['audio'],
               audio: {
                 input: {
-                  transcription: {
+                  // If browser supports native Web Speech (Chrome, Edge, Safari, Android): use native (zero latency & 0 cost).
+                  // If browser does NOT support native speech (e.g. Firefox): fallback to WebRTC Cloud Whisper STT.
+                  transcription: hasSpeechRecognition ? null : {
                     model: 'whisper-1',
                     language: sessionLang === 'hi' ? 'hi' : 'en',
                     prompt: collegePrompt,
                   },
-                  turn_detection:
+                  turn_detection: hasSpeechRecognition ? null : (
                     sessionMode === 'push_to_talk'
                       ? null
                       : {
@@ -615,7 +1051,8 @@ export default function CollegeVoiceSearchPage() {
                           prefix_padding_ms: 300,
                           silence_duration_ms: 650,
                           create_response: false,
-                        },
+                        }
+                  ),
                 },
                 output: {
                   voice: selectedVoice,
@@ -632,8 +1069,10 @@ export default function CollegeVoiceSearchPage() {
             ? `Namaste! Main ${sessionData.college_name || collegeName} ka official AI counselor hoon. Bataye main aapki kya madad kar sakta hoon?`
             : `Namaste! I am the official AI admission counselor for ${sessionData.college_name || collegeName}. How can I assist you with programs, admissions, or fees today?`;
 
-        if (!sessionBargeIn) {
+        if (sessionMode === 'push_to_talk') {
           setMicrophoneMuted(true);
+        } else {
+          setMicrophoneMuted(false);
         }
         try {
           dc.send(
@@ -695,6 +1134,92 @@ export default function CollegeVoiceSearchPage() {
         type: 'answer',
         sdp: answerSdp,
       });
+
+      // 6. Initialize Native Web Speech API as Primary Baseline STT
+      if (typeof window !== 'undefined') {
+        const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRec) {
+          try {
+            const rec = new SpeechRec();
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.lang = sessionLang === 'hi' ? 'hi-IN' : 'en-IN';
+
+            rec.onstart = () => {
+              setAgentState('listening');
+            };
+
+            rec.onresult = (e: any) => {
+              // 1. Echo suppression: do not transcribe speaker output when counselor is speaking
+              if (isResponseActiveRef.current && !bargeInRef.current) {
+                return;
+              }
+
+              // 2. Push-to-Talk gate: only transcribe when user is actively holding PTT
+              if (voiceModeRef.current === 'push_to_talk' && !isPttHoldingRef.current) {
+                return;
+              }
+
+              let interim = '';
+              let final = '';
+              const now = Date.now();
+              for (let i = e.resultIndex; i < e.results.length; ++i) {
+                if (e.results[i].isFinal) {
+                  final += e.results[i][0].transcript;
+                } else {
+                  interim += e.results[i][0].transcript;
+                }
+              }
+              if (interim) {
+                setNativeMetric((prev) => ({
+                  ...prev,
+                  partialText: interim,
+                  firstDeltaMs: prev.firstDeltaMs ?? (speechStartTimeRef.current ? now - speechStartTimeRef.current : 80),
+                  isStreaming: true,
+                }));
+                // Show real-time streaming speech preview
+                setLiveAiSubtitle(`🎙️ "${interim}"`);
+                setAgentState('listening');
+              }
+              if (final) {
+                const userText = final.trim();
+                const completionMs = speechStartTimeRef.current ? now - speechStartTimeRef.current : 250;
+                setNativeMetric((prev) => ({
+                  ...prev,
+                  finalText: userText,
+                  completionMs,
+                  isStreaming: false,
+                  isEmpty: !userText,
+                }));
+                setLiveAiSubtitle('');
+                if (userText) {
+                  processFinalTranscript(userText, `native-${Date.now()}`, 'native');
+                }
+              }
+            };
+
+            rec.onerror = (e: any) => {
+              if (e.error !== 'no-speech') {
+                console.warn('Native speech recognition notice:', e.error);
+              }
+            };
+
+            rec.onend = () => {
+              // Auto-restart if voice session is still live AND counselor is not speaking (or bargeIn is true)
+              if (voiceStateRef.current === 'live' && recognitionRef.current && (!isResponseActiveRef.current || bargeInRef.current)) {
+                try {
+                  rec.start();
+                } catch (e) {}
+              }
+            };
+
+            rec.start();
+            recognitionRef.current = rec;
+          } catch (srErr) {
+            console.warn('Native speech recognition start error:', srErr);
+          }
+        }
+      }
     } catch (err: any) {
       console.error('Failed to start voice session:', err);
       const errMsg =
@@ -729,10 +1254,35 @@ export default function CollegeVoiceSearchPage() {
   const startPttHold = useCallback(() => {
     if (voiceState !== 'live' || voiceMode !== 'push_to_talk') return;
     setIsPttHolding(true);
+    isPttHoldingRef.current = true;
     setAgentState('listening');
     setLiveAiSubtitle('');
+    speechStartTimeRef.current = Date.now();
+    setBaselineMetric({
+      partialText: '',
+      finalText: '',
+      firstDeltaMs: null,
+      completionMs: null,
+      speechDurationMs: null,
+      isStreaming: true,
+      isEmpty: false,
+    });
+    setCandidateMetric({
+      partialText: '',
+      finalText: '',
+      firstDeltaMs: null,
+      completionMs: null,
+      speechDurationMs: null,
+      isStreaming: true,
+      isEmpty: false,
+    });
     if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
       dataChannelRef.current.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+    }
+    if (candidateDcRef.current && candidateDcRef.current.readyState === 'open') {
+      try {
+        candidateDcRef.current.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+      } catch (e) {}
     }
     setMicrophoneMuted(false);
   }, [voiceState, voiceMode, setMicrophoneMuted]);
@@ -740,11 +1290,17 @@ export default function CollegeVoiceSearchPage() {
   const stopPttHold = useCallback(() => {
     if (voiceState !== 'live' || voiceMode !== 'push_to_talk' || !isPttHolding) return;
     setIsPttHolding(false);
+    isPttHoldingRef.current = false;
     setMicrophoneMuted(true);
     setAgentState('thinking');
 
     if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
       dataChannelRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+    }
+    if (candidateDcRef.current && candidateDcRef.current.readyState === 'open') {
+      try {
+        candidateDcRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+      } catch (e) {}
     }
   }, [voiceState, voiceMode, isPttHolding, setMicrophoneMuted]);
 
@@ -841,6 +1397,28 @@ export default function CollegeVoiceSearchPage() {
       stopVoiceSession();
       setTimeout(() => {
         startVoiceSession(lang, voiceMode, micProfile, newBargeIn, activeProjectId);
+      }, 250);
+    }
+  };
+
+  const handleTranscriptionModeChange = (newMode: TranscriptionTestMode) => {
+    if (newMode === transcriptionMode) return;
+    setTranscriptionMode(newMode);
+    transcriptionModeRef.current = newMode;
+    if (newMode === 'candidate') {
+      setActiveChatSource('candidate');
+      activeChatSourceRef.current = 'candidate';
+    } else if (newMode === 'native') {
+      setActiveChatSource('native');
+      activeChatSourceRef.current = 'native';
+    } else if (newMode === 'baseline') {
+      setActiveChatSource('baseline');
+      activeChatSourceRef.current = 'baseline';
+    }
+    if (voiceState === 'live') {
+      stopVoiceSession();
+      setTimeout(() => {
+        startVoiceSession(lang, voiceMode, micProfile, bargeIn, activeProjectId);
       }, 250);
     }
   };
@@ -999,6 +1577,11 @@ export default function CollegeVoiceSearchPage() {
 
   const statusInfo = computedStatusBadge();
 
+  // Word Error Rate calculations for active reference ground-truth
+  const baselineWer = computeWER(referenceText, baselineMetric.finalText || baselineMetric.partialText);
+  const candidateWer = computeWER(referenceText, candidateMetric.finalText || candidateMetric.partialText);
+  const nativeWer = computeWER(referenceText, nativeMetric.finalText || nativeMetric.partialText);
+
   return (
     <DashboardShell activeNav="college-voice-search">
       <div className="space-y-4">
@@ -1137,6 +1720,14 @@ export default function CollegeVoiceSearchPage() {
                 />
                 <span>Allow interrupting</span>
               </label>
+
+              {/* STT Engine Status Badge (Native with Universal Cross-Browser Fallback) */}
+              <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-2.5 py-1 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                  STT: {hasNativeSpeechSupport ? 'Web Speech API (Native Fast)' : 'WebRTC Cloud Speech (Universal Fallback)'}
+                </span>
+              </div>
             </div>
 
             <p className="text-[11px] t3 flex items-center gap-1.5">
@@ -1144,10 +1735,12 @@ export default function CollegeVoiceSearchPage() {
               <span>
                 {voiceMode === 'push_to_talk'
                   ? 'Push-to-Talk: Hold button or Spacebar to speak'
-                  : 'Hands-free: Server VAD detects voice with noise filtering'}
+                  : 'Hands-free: Native browser voice detection active'}
               </span>
             </p>
           </div>
+
+          {/* A/B Transcription Test Panel - Commented out per user request: Web Speech API is baseline */}
 
           <div className="grid lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x bd">
             {/* Left Column: Voice Orb & Controls */}

@@ -77,6 +77,21 @@ class VoiceSessionResponse(BaseModel):
     base_domain: str
 
 
+# [COMMENTED OUT: Web Speech API is baseline STT]
+# class CreateTranscriptionSessionRequest(BaseModel):
+#     project_id: str
+#     language: Optional[str] = "en-IN"
+#     model: Optional[str] = "gpt-live-transcribe"
+#
+# class TranscriptionSessionResponse(BaseModel):
+#     client_secret: Dict[str, Any]
+#     session_id: str
+#     project_id: str
+#     college_name: str
+#     base_domain: str
+#     model: str
+
+
 class VoiceSearchToolRequest(BaseModel):
     project_id: Optional[str] = None
     query: str
@@ -210,7 +225,11 @@ async def create_voice_realtime_session(
             detail=f"College project '{payload.project_id}' not found. Please create it first via POST /api/web-search/projects."
         )
 
-    college_name = project.college_name
+    raw_college_name = project.college_name or "College"
+    if raw_college_name.startswith("http://") or raw_college_name.startswith("https://") or "/" in raw_college_name:
+        college_name = project.base_domain or raw_college_name.replace("https://", "").replace("http://", "").strip("/")
+    else:
+        college_name = raw_college_name
     base_domain = project.base_domain
 
     api_key = settings.OPENAI_API_KEY
@@ -323,6 +342,19 @@ async def create_voice_realtime_session(
 
 
 # ---------------------------------------------------------------------------
+# Candidate Transcription Session: /transcription-session
+# [COMMENTED OUT: Web Speech API is baseline STT in UI]
+# ---------------------------------------------------------------------------
+# @router.post("/transcription-session", response_model=TranscriptionSessionResponse)
+# async def create_dedicated_transcription_session(
+#     request: Request,
+#     payload: CreateTranscriptionSessionRequest,
+#     db: Session = Depends(get_db)
+# ):
+#     ...
+
+
+# ---------------------------------------------------------------------------
 # TASK C: new /turn endpoint
 # ---------------------------------------------------------------------------
 @router.post("/turn", response_model=VoiceTurnResponse)
@@ -374,7 +406,11 @@ async def voice_turn(
             detail=f"College project '{project_id}' not found."
         )
 
-    college_name = project.college_name
+    raw_college_name = project.college_name or "College"
+    if raw_college_name.startswith("http://") or raw_college_name.startswith("https://") or "/" in raw_college_name:
+        college_name = project.base_domain or raw_college_name.replace("https://", "").replace("http://", "").strip("/")
+    else:
+        college_name = raw_college_name
     base_domain = project.base_domain
     language_hint = payload.language_hint or "en-IN"
     history_dicts = [
