@@ -25,10 +25,10 @@ def get_db():
 
 
 # ---------------------------------------------------------------------------
-# In-memory per-IP rate limiter (10 sessions / 60s)
+# In-memory per-IP rate limiter (30 sessions / 60s)
 # ---------------------------------------------------------------------------
 _rate_store: Dict[str, list] = defaultdict(list)
-_RATE_LIMIT = 10
+_RATE_LIMIT = 30
 _RATE_WINDOW = 60  # seconds
 
 def _check_rate_limit(ip: str) -> bool:
@@ -47,10 +47,10 @@ def _check_rate_limit(ip: str) -> bool:
 # Pydantic models – TASK B: strict Literals
 # ---------------------------------------------------------------------------
 class CreateVoiceSessionRequest(BaseModel):
-    project_id: Optional[str] = None  # TASK A: no default; 404 if missing
+    project_id: str = Field(..., min_length=1)
     voice: Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"] = "verse"
     language: Literal["en-IN", "hi"] = "en-IN"
-    mode: Literal["hands_free", "push_to_talk"] = "hands_free"
+    mode: Literal["hands_free", "push_to_talk"] = "push_to_talk"
     mic_profile: Literal["near_field", "far_field"] = "near_field"
     barge_in: bool = False
     vad_threshold: Optional[float] = 0.5
@@ -93,8 +93,8 @@ class VoiceSessionResponse(BaseModel):
 
 
 class VoiceSearchToolRequest(BaseModel):
-    project_id: Optional[str] = None
-    query: str
+    project_id: str = Field(..., min_length=1)
+    query: str = Field(..., min_length=1)
     language: Optional[str] = "en-IN"
     max_sources: Optional[int] = 3
 
@@ -124,8 +124,8 @@ class TurnHistoryItem(BaseModel):
 
 
 class VoiceTurnRequest(BaseModel):
-    project_id: str
-    transcript: str
+    project_id: str = Field(..., min_length=1)
+    transcript: str = Field(..., min_length=1)
     language_hint: Optional[str] = "en-IN"
     history: Optional[List[TurnHistoryItem]] = Field(default_factory=list)
     stt_meta: Optional[Dict[str, Any]] = None

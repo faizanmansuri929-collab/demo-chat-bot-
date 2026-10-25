@@ -152,7 +152,7 @@ export default function CollegeVoiceSearchPage() {
   const [activeProjectId, setActiveProjectId] = useState<string>('proj_poornima');
   const [selectedVoice, setSelectedVoice] = useState<string>('verse');
   const [lang, setLang] = useState<'en-IN' | 'hi'>('en-IN');
-  const [voiceMode, setVoiceMode] = useState<'hands_free' | 'push_to_talk'>('hands_free');
+  const [voiceMode, setVoiceMode] = useState<'hands_free' | 'push_to_talk'>('push_to_talk');
   const [micProfile, setMicProfile] = useState<'near_field' | 'far_field'>('near_field');
   const [bargeIn, setBargeIn] = useState<boolean>(false);
 
@@ -219,6 +219,11 @@ export default function CollegeVoiceSearchPage() {
 
   // Native Web Speech Recognition Ref & Browser Compatibility
   const recognitionRef = useRef<any>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pttGraceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isPttDrainingRef = useRef<boolean>(false);
+  const accumulatedTranscriptRef = useRef<string>('');
+  const isProcessingTurnRef = useRef<boolean>(false);
   const [hasNativeSpeechSupport, setHasNativeSpeechSupport] = useState<boolean>(true);
 
   useEffect(() => {
@@ -390,9 +395,20 @@ export default function CollegeVoiceSearchPage() {
     setCandidateStatus('idle');
 
     // Teardown native Web Speech if running
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (pttGraceTimerRef.current) {
+      clearTimeout(pttGraceTimerRef.current);
+      pttGraceTimerRef.current = null;
+    }
+    isPttDrainingRef.current = false;
+    accumulatedTranscriptRef.current = '';
+    isProcessingTurnRef.current = false;
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+        recognitionRef.current.abort();
       } catch (e) {}
       recognitionRef.current = null;
     }
@@ -470,6 +486,7 @@ export default function CollegeVoiceSearchPage() {
 
       utterance.onend = () => {
         isResponseActiveRef.current = false;
+        isProcessingTurnRef.current = false;
         setAgentState('idle');
         utteranceRef.current = null;
         if (voiceModeRef.current !== 'push_to_talk' && voiceStateRef.current === 'live' && recognitionRef.current) {
@@ -481,6 +498,7 @@ export default function CollegeVoiceSearchPage() {
 
       utterance.onerror = () => {
         isResponseActiveRef.current = false;
+        isProcessingTurnRef.current = false;
         setAgentState('idle');
         utteranceRef.current = null;
         if (voiceModeRef.current !== 'push_to_talk' && voiceStateRef.current === 'live' && recognitionRef.current) {
@@ -878,6 +896,7 @@ export default function CollegeVoiceSearchPage() {
         // Give 750ms buffer for device speakers to finish playing remote audio before opening mic
         unmuteTimerRef.current = setTimeout(() => {
           isResponseActiveRef.current = false;
+          isProcessingTurnRef.current = false;
           setAgentState('idle');
           setStatusText('Live Voice Call Connected');
           if (voiceModeRef.current === 'push_to_talk') {
@@ -885,8 +904,8 @@ export default function CollegeVoiceSearchPage() {
           } else if (!isManualMutedRef.current) {
             setMicrophoneMuted(false);
           }
-          // Resume speech recognition in hands-free mode if call is still live
-          if (voiceModeRef.current !== 'push_to_talk' && voiceStateRef.current === 'live' && recognitionRef.current) {
+          // Resume speech recognition if call is still live so it is ready for next turn
+          if (voiceStateRef.current === 'live' && recognitionRef.current) {
             try {
               recognitionRef.current.start();
             } catch (e) {}
@@ -1145,56 +1164,89 @@ export default function CollegeVoiceSearchPage() {
             rec.interimResults = true;
             rec.lang = sessionLang === 'hi' ? 'hi-IN' : 'en-IN';
 
+            const commitSpeechTurn = (userText: string) => {
+              if (silenceTimerRef.current) {
+                clearTimeout(silenceTimerRef.current);
+                silenceTimerRef.current = null;
+              }
+              const cleanText = userText.trim();
+              if (!cleanText || isProcessingTurnRef.current) return;
+
+              isProcessingTurnRef.current = true;
+              accumulatedTranscriptRef.current = '';
+              setLiveAiSubtitle('');
+
+              const turnId = `native-${Date.now()}`;
+              processFinalTranscript(cleanText, turnId, 'native')
+                .finally(() => {
+                  isProcessingTurnRef.current = false;
+                });
+            };
+
             rec.onstart = () => {
               setAgentState('listening');
             };
 
             rec.onresult = (e: any) => {
-              // 1. Echo suppression: do not transcribe speaker output when counselor is speaking
-              if (isResponseActiveRef.current && !bargeInRef.current) {
+              // 1. Echo suppression: do not transcribe speaker output when counselor is speaking (unless bargeIn OR actively holding PTT)
+              if (isResponseActiveRef.current && !bargeInRef.current && !isPttHoldingRef.current) {
                 return;
               }
 
-              // 2. Push-to-Talk gate: only transcribe when user is actively holding PTT
-              if (voiceModeRef.current === 'push_to_talk' && !isPttHoldingRef.current) {
+              // 2. Push-to-Talk gate: only transcribe when user is actively holding PTT OR during trailing drain window
+              if (voiceModeRef.current === 'push_to_talk' && !isPttHoldingRef.current && !isPttDrainingRef.current) {
+                return;
+              }
+
+              // 3. Skip accumulating if currently searching / waiting for backend
+              if (isProcessingTurnRef.current) {
                 return;
               }
 
               let interim = '';
               let final = '';
               const now = Date.now();
-              for (let i = e.resultIndex; i < e.results.length; ++i) {
+              for (let i = 0; i < e.results.length; ++i) {
                 if (e.results[i].isFinal) {
-                  final += e.results[i][0].transcript;
+                  final += e.results[i][0].transcript + ' ';
                 } else {
-                  interim += e.results[i][0].transcript;
+                  interim += e.results[i][0].transcript + ' ';
                 }
               }
-              if (interim) {
-                setNativeMetric((prev) => ({
-                  ...prev,
-                  partialText: interim,
-                  firstDeltaMs: prev.firstDeltaMs ?? (speechStartTimeRef.current ? now - speechStartTimeRef.current : 80),
-                  isStreaming: true,
-                }));
-                // Show real-time streaming speech preview
-                setLiveAiSubtitle(`🎙️ "${interim}"`);
-                setAgentState('listening');
+
+              const latestSpeech = (final || interim || '').trim();
+              if (!latestSpeech) return;
+
+              accumulatedTranscriptRef.current = latestSpeech;
+
+              setNativeMetric((prev) => ({
+                ...prev,
+                partialText: latestSpeech,
+                firstDeltaMs: prev.firstDeltaMs ?? (speechStartTimeRef.current ? now - speechStartTimeRef.current : 80),
+                isStreaming: true,
+              }));
+
+              // Show real-time streaming speech preview
+              setLiveAiSubtitle(`🎙️ "${latestSpeech}"`);
+              setAgentState('listening');
+
+              // If browser marked it final, commit immediately!
+              if (final.trim()) {
+                commitSpeechTurn(final.trim());
+                return;
               }
-              if (final) {
-                const userText = final.trim();
-                const completionMs = speechStartTimeRef.current ? now - speechStartTimeRef.current : 250;
-                setNativeMetric((prev) => ({
-                  ...prev,
-                  finalText: userText,
-                  completionMs,
-                  isStreaming: false,
-                  isEmpty: !userText,
-                }));
-                setLiveAiSubtitle('');
-                if (userText) {
-                  processFinalTranscript(userText, `native-${Date.now()}`, 'native');
+
+              // For hands-free: reset silence debounce timer (850ms) to auto-commit when user finishes speaking
+              if (voiceModeRef.current !== 'push_to_talk') {
+                if (silenceTimerRef.current) {
+                  clearTimeout(silenceTimerRef.current);
                 }
+                silenceTimerRef.current = setTimeout(() => {
+                  const speechToCommit = accumulatedTranscriptRef.current.trim();
+                  if (speechToCommit) {
+                    commitSpeechTurn(speechToCommit);
+                  }
+                }, 850);
               }
             };
 
@@ -1205,8 +1257,13 @@ export default function CollegeVoiceSearchPage() {
             };
 
             rec.onend = () => {
-              // Auto-restart if voice session is still live AND counselor is not speaking (or bargeIn is true)
-              if (voiceStateRef.current === 'live' && recognitionRef.current && (!isResponseActiveRef.current || bargeInRef.current)) {
+              // Auto-restart if voice session is still live AND not currently processing turn
+              if (
+                voiceStateRef.current === 'live' &&
+                recognitionRef.current &&
+                !isProcessingTurnRef.current &&
+                (!isResponseActiveRef.current || bargeInRef.current || isPttHoldingRef.current)
+              ) {
                 try {
                   rec.start();
                 } catch (e) {}
@@ -1253,8 +1310,29 @@ export default function CollegeVoiceSearchPage() {
   // Push-to-Talk Press & Release handlers
   const startPttHold = useCallback(() => {
     if (voiceState !== 'live' || voiceMode !== 'push_to_talk') return;
+
+    // 1. If counselor was actively speaking, cancel it immediately (barge-in on PTT hold)
+    if (isResponseActiveRef.current) {
+      if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+        try {
+          dataChannelRef.current.send(JSON.stringify({ type: 'response.cancel' }));
+        } catch (e) {}
+      }
+      isResponseActiveRef.current = false;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    if (pttGraceTimerRef.current) {
+      clearTimeout(pttGraceTimerRef.current);
+      pttGraceTimerRef.current = null;
+    }
+    isPttDrainingRef.current = false;
+
     setIsPttHolding(true);
     isPttHoldingRef.current = true;
+    accumulatedTranscriptRef.current = '';
     setAgentState('listening');
     setLiveAiSubtitle('');
     speechStartTimeRef.current = Date.now();
@@ -1285,6 +1363,13 @@ export default function CollegeVoiceSearchPage() {
       } catch (e) {}
     }
     setMicrophoneMuted(false);
+
+    // Ensure native speech recognition is actively running whenever PTT is held
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {}
+    }
   }, [voiceState, voiceMode, setMicrophoneMuted]);
 
   const stopPttHold = useCallback(() => {
@@ -1294,6 +1379,34 @@ export default function CollegeVoiceSearchPage() {
     setMicrophoneMuted(true);
     setAgentState('thinking');
 
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    // Keep trailing drain window open for 250ms so in-flight speech chunk from browser recognizer arrives
+    isPttDrainingRef.current = true;
+    if (pttGraceTimerRef.current) {
+      clearTimeout(pttGraceTimerRef.current);
+    }
+
+    pttGraceTimerRef.current = setTimeout(() => {
+      isPttDrainingRef.current = false;
+      const pttText = accumulatedTranscriptRef.current.trim();
+      if (pttText && !isProcessingTurnRef.current) {
+        accumulatedTranscriptRef.current = '';
+        setLiveAiSubtitle('');
+        isProcessingTurnRef.current = true;
+        processFinalTranscript(pttText, `native-${Date.now()}`, 'native')
+          .finally(() => {
+            isProcessingTurnRef.current = false;
+          });
+      } else if (!pttText) {
+        setAgentState('idle');
+        setStatusText('Live Voice Call Connected');
+      }
+    }, 250);
+
     if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
       dataChannelRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
     }
@@ -1302,7 +1415,7 @@ export default function CollegeVoiceSearchPage() {
         candidateDcRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
       } catch (e) {}
     }
-  }, [voiceState, voiceMode, isPttHolding, setMicrophoneMuted]);
+  }, [voiceState, voiceMode, isPttHolding, setMicrophoneMuted, processFinalTranscript]);
 
   // Keyboard Spacebar shortcut for Push-to-Talk when connected
   useEffect(() => {

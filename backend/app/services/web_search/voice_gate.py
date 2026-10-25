@@ -68,8 +68,11 @@ COLLEGE_INQUIRY_WORDS = frozenset([
     "btech", "mtech", "mba", "bca", "mca", "bba", "bdes", "phd", "cse", "ece",
     "faculty", "professors", "teachers", "campus", "location", "address",
     "syllabus", "curriculum", "exam", "exams", "contact", "helpline",
+    "info", "information", "detail", "details", "help", "about", "tell", "explain",
+    "overview", "facilities", "library", "sports", "bus", "transport", "transportation",
+    "timing", "timings", "review", "reviews",
     # Specific Hinglish terms
-    "kharcha", "shulk", "daakhila", "naukri", "kamra", "padhai"
+    "kharcha", "shulk", "daakhila", "naukri", "kamra", "padhai", "batao", "bataiye", "jaankari"
 ])
 
 COLLEGE_COMPOUND_PHRASES = [
@@ -124,10 +127,12 @@ async def gate_transcript(
     if script == "other":
         return _silent("bad_script", "Non-Latin/Devanagari script detected.")
 
-    # 3. Greeting standalone (1-3 words that are pure greetings)
-    greeting_tokens = {"hi", "hello", "hey", "namaste", "namaskar", "hii", "helloo", "hola"}
-    pure_greeting = len(words) <= 3 and all(w in greeting_tokens or w in ("good", "morning", "afternoon", "evening") for w in words)
-    if pure_greeting:
+    # 3. Greeting standalone (common short greetings and greeting + "there")
+    greeting_tokens = {"hi", "hello", "hey", "namaste", "namaskar", "hii", "helloo", "hola", "there"}
+    greeting_variants = {"good", "morning", "afternoon", "evening"}
+    greeting_words = [w for w in words if w not in {"there", "buddy", "friend", "sir", "maam", "madam"}]
+    pure_greeting = len(greeting_words) <= 3 and all(w in greeting_tokens or w in greeting_variants for w in greeting_words)
+    if pure_greeting and greeting_words:
         return _respond_greeting(college_name, language)
 
     # 4. College keyword fast path — checks specific college queries (even 1-word like "Fees?", "Hostel?", "Eligibility?")
