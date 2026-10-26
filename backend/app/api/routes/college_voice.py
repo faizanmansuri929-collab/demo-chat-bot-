@@ -6,7 +6,7 @@ import httpx
 from collections import defaultdict
 from typing import List, Optional, Dict, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.config import settings
@@ -56,13 +56,15 @@ class CreateVoiceSessionRequest(BaseModel):
     vad_threshold: Optional[float] = 0.5
     silence_duration_ms: Optional[int] = 650
 
-    @validator("vad_threshold")
+    @field_validator("vad_threshold")
+    @classmethod
     def clamp_vad(cls, v):
         if v is None:
             return 0.5
         return max(0.2, min(0.9, float(v)))
 
-    @validator("silence_duration_ms")
+    @field_validator("silence_duration_ms")
+    @classmethod
     def clamp_silence(cls, v):
         if v is None:
             return 650
@@ -75,21 +77,6 @@ class VoiceSessionResponse(BaseModel):
     project_id: str
     college_name: str
     base_domain: str
-
-
-# [COMMENTED OUT: Web Speech API is baseline STT]
-# class CreateTranscriptionSessionRequest(BaseModel):
-#     project_id: str
-#     language: Optional[str] = "en-IN"
-#     model: Optional[str] = "gpt-live-transcribe"
-#
-# class TranscriptionSessionResponse(BaseModel):
-#     client_secret: Dict[str, Any]
-#     session_id: str
-#     project_id: str
-#     college_name: str
-#     base_domain: str
-#     model: str
 
 
 class VoiceSearchToolRequest(BaseModel):

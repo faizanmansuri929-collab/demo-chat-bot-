@@ -74,16 +74,20 @@ async def create_college_project(
 @router.get("/projects", response_model=List[CollegeProjectResponse])
 def list_college_projects(db: Session = Depends(get_db)):
     """Lists all created College Web Search projects."""
-    seed_poornima_allowlist(db)
     projects = db.query(CollegeWebSearchProjectDB).order_by(CollegeWebSearchProjectDB.created_at.desc()).all()
+    if not projects:
+        seed_poornima_allowlist(db)
+        projects = db.query(CollegeWebSearchProjectDB).order_by(CollegeWebSearchProjectDB.created_at.desc()).all()
     return projects
 
 
 @router.get("/projects/{project_id}", response_model=CollegeProjectResponse)
 def get_college_project(project_id: str, db: Session = Depends(get_db)):
     """Gets details and source statistics for a specific college project."""
-    seed_poornima_allowlist(db)
     project = db.query(CollegeWebSearchProjectDB).filter(CollegeWebSearchProjectDB.id == project_id).first()
+    if not project and project_id == "proj_poornima":
+        seed_poornima_allowlist(db)
+        project = db.query(CollegeWebSearchProjectDB).filter(CollegeWebSearchProjectDB.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="College project not found.")
     return project

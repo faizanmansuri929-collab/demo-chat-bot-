@@ -2,7 +2,7 @@ import datetime
 from typing import List, Optional, Dict, Any
 from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, ConfigDict
 from app.core.database import Base
 
 # --- SQLAlchemy Database Models ---
@@ -275,8 +275,7 @@ class EntitySchema(BaseModel):
     source_type: str = "REAL_WEBSITE"
     created_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PageSchema(BaseModel):
     id: str
@@ -287,8 +286,7 @@ class PageSchema(BaseModel):
     source_type: str = "REAL_WEBSITE"
     crawled_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PageDetailSchema(PageSchema):
     description: str
@@ -309,8 +307,7 @@ class CrawlJobSchema(BaseModel):
     completed_at: Optional[datetime.datetime] = None
     error_message: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SectorInfoSchema(BaseModel):
     sector: str
@@ -335,8 +332,7 @@ class AgentResponse(BaseModel):
     total_chunks_count: int = 0
     active_job: Optional[CrawlJobSchema] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ChatMessage(BaseModel):
     role: str
@@ -368,8 +364,7 @@ class AdmissionLeadSchema(BaseModel):
     created_at: datetime.datetime
     updated_at: Optional[datetime.datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AdmissionLeadCreate(BaseModel):
     student_name: str
@@ -398,8 +393,7 @@ class CallbackRequestSchema(BaseModel):
     status: str = "PENDING"
     created_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CallbackCreateRequest(BaseModel):
     student_name: str
@@ -517,8 +511,7 @@ class HardcodedFAQSchema(BaseModel):
     answer_available: bool = True
     created_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class HardcodedBotResponse(BaseModel):
     id: str
@@ -540,8 +533,7 @@ class HardcodedBotResponse(BaseModel):
     faqs_count: int = 0
     visitors_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ChatVisitorSchema(BaseModel):
     id: str
@@ -557,8 +549,7 @@ class ChatVisitorSchema(BaseModel):
     source_url: Optional[str] = ""
     created_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class HardcodedCTA(BaseModel):
     label: str
@@ -662,8 +653,7 @@ class ProductResponse(BaseModel):
     location_context: Optional[str] = ""
     scraped_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ScrapeJobResponse(BaseModel):
     id: str
@@ -681,8 +671,7 @@ class ScrapeJobResponse(BaseModel):
     started_at: datetime.datetime
     completed_at: Optional[datetime.datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaginatedProductsResponse(BaseModel):
     items: List[ProductResponse]
@@ -751,8 +740,7 @@ class WebSearchSourceSchema(BaseModel):
     last_fetched_at: Optional[datetime.datetime] = None
     created_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WebSearchSourceCreate(BaseModel):
     url: str
@@ -775,8 +763,7 @@ class WebSearchConfigSchema(BaseModel):
     active_sources_count: int = 0
     updated_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WebSearchConfigUpdate(BaseModel):
     college_name: Optional[str] = None
@@ -891,8 +878,7 @@ class CollegeProjectResponse(BaseModel):
     created_at: datetime.datetime
     updated_at: Optional[datetime.datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CollegeSourceSchema(BaseModel):
     id: str
@@ -906,8 +892,7 @@ class CollegeSourceSchema(BaseModel):
     last_fetched_at: Optional[datetime.datetime] = None
     discovered_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CollegeSourceUpdate(BaseModel):
     title: Optional[str] = None

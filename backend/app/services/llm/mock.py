@@ -125,16 +125,23 @@ class MockLLMProvider(BaseLLMProvider):
 class LocalSentenceEmbeddingProvider(BaseEmbeddingProvider):
     """
     Local embedding provider using SentenceTransformers or deterministic feature hash vectors.
+    Lazily loads the heavy transformer model on first use.
     """
     def __init__(self):
         self.model = None
-        try:
-            from sentence_transformers import SentenceTransformer
-            self.model = SentenceTransformer("all-MiniLM-L6-v2")
-        except Exception as e:
-            print(f"[LocalSentenceEmbeddingProvider] SentenceTransformer fallback to feature hash: {e}")
+        self._load_attempted = False
+
+    def _ensure_model(self):
+        if not self._load_attempted:
+            self._load_attempted = True
+            try:
+                from sentence_transformers import SentenceTransformer
+                self.model = SentenceTransformer("all-MiniLM-L6-v2")
+            except Exception as e:
+                print(f"[LocalSentenceEmbeddingProvider] SentenceTransformer fallback to feature hash: {e}")
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        self._ensure_model()
         if self.model:
             embeddings = self.model.encode(texts, convert_to_numpy=True)
             return embeddings.tolist()

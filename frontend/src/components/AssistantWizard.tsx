@@ -301,15 +301,26 @@ export default function AssistantWizard() {
         targetUrl: '/college-voice-search',
         btnText: 'Open Voice Assistant'
       });
-    } else {
-      // Hardcoded or AI
+    } else if (botMode === 'hardcoded') {
+      const destination = backendProjectId ? `/hardcoded/${backendProjectId}` : '/college-web-search';
       setLaunchResult({
         tone: 'ok',
         message: backendSuccess
-          ? `${name} assistant provisioned in backend database.\n\nReady for questions and lead capture.`
-          : `${name} assistant initialized.\n\nReady for live questions and lead capture.`,
-        targetUrl: '/college-web-search',
-        btnText: 'Open Assistant'
+          ? `${name} instant FAQ assistant provisioned in backend database!\n\nView structured intents, test visitor flows, or embed the widget.`
+          : `${name} instant FAQ assistant initialized.\n\nReady for questions and lead capture.`,
+        targetUrl: destination,
+        btnText: 'Open FAQ Assistant'
+      });
+    } else {
+      // AI RAG Agent
+      const destination = backendProjectId ? `/agents/${backendProjectId}` : '/college-web-search';
+      setLaunchResult({
+        tone: 'ok',
+        message: backendSuccess
+          ? `${name} deep-crawl AI agent provisioned!\n\nExplore crawled pages, extracted entities, and test grounded RAG chat.`
+          : `${name} assistant initialized.\n\nReady for questions and lead capture.`,
+        targetUrl: destination,
+        btnText: 'Open Agent Dashboard'
       });
     }
   };

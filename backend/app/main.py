@@ -1,40 +1,18 @@
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import init_db
 from app.api.api import api_router
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+logger = logging.getLogger("omniagent")
 
-# Ensure new columns exist on existing SQLite databases
-try:
-    with engine.connect() as conn:
-        from sqlalchemy import text
-        conn.execute(text("ALTER TABLE products ADD COLUMN description TEXT;"))
-        conn.commit()
-except Exception:
-    pass # Column already exists or table created fresh
+# Initialize database tables and migrations
+init_db()
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    description="Backend service for crawling websites, creating tenant-isolated knowledge bases, and serving grounded RAG AI agents.",
-    version="1.0.0"
-)
-
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(api_router)
-
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     try:
         from app.core.database import SessionLocal
         from app.services.web_search.allowlist import seed_poornima_allowlist
@@ -44,7 +22,27 @@ def startup_event():
         finally:
             db.close()
     except Exception as e:
-        print(f"[Startup] Warning seeding legacy allowlist: {e}")
+        logger.warning(f"[Startup] Warning seeding legacy allowlist: {e}")
+    yield
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    description="Backend service for crawling websites, creating tenant-isolated knowledge bases, and serving grounded RAG AI agents.",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(api_router)
 
 @app.get("/")
 def root():

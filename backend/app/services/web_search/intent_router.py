@@ -58,7 +58,8 @@ INTENT_KEYWORD_MAP = {
         "sports fest", "technical events", "conference", "conferences", "workshop", "seminar"
     ],
     "about_history_accreditation": [
-        "about", "history", "legacy", "accreditation", "naac", "aicte", "rtu",
+        "about us", "about the college", "about the university", "about the institute",
+        "history", "legacy", "accreditation", "naac", "aicte", "rtu",
         "nba", "ranking", "philosophy", "foundation"
     ]
 }
@@ -173,7 +174,9 @@ def classify_college_intent(
             r'\b(ipl score|cricket match|football|fifa|world cup|olympics)\b',
             r'\b(recipe|how to cook|biryani|paneer|movie review|hollywood|bollywood|netflix|cinema)\b',
             r'\b(iphone 16|samsung galaxy|laptop review|car price|bike model)\b',
-            r'\b(joke|story|poem|write a code|python script|write an essay)\b'
+            r'\b(joke|story|poem|write a code|python script|write an essay)\b',
+            r'\b(solar system|planet|planets|galaxy|universe|astronomy|earth|mars|jupiter|saturn)\b',
+            r'\b(capital of|largest country|who is the president|who is the prime minister)\b'
         ]
         for otp in off_topic_patterns:
             if re.search(otp, lower_msg):

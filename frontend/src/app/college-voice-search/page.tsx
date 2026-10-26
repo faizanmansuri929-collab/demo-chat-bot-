@@ -223,6 +223,7 @@ export default function CollegeVoiceSearchPage() {
   const pttGraceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPttDrainingRef = useRef<boolean>(false);
   const accumulatedTranscriptRef = useRef<string>('');
+  const recognitionStartIndexRef = useRef<number>(0);
   const isProcessingTurnRef = useRef<boolean>(false);
   const [hasNativeSpeechSupport, setHasNativeSpeechSupport] = useState<boolean>(true);
 
@@ -405,6 +406,7 @@ export default function CollegeVoiceSearchPage() {
     }
     isPttDrainingRef.current = false;
     accumulatedTranscriptRef.current = '';
+    recognitionStartIndexRef.current = 0;
     isProcessingTurnRef.current = false;
     if (recognitionRef.current) {
       try {
@@ -904,8 +906,8 @@ export default function CollegeVoiceSearchPage() {
           } else if (!isManualMutedRef.current) {
             setMicrophoneMuted(false);
           }
-          // Resume speech recognition if call is still live so it is ready for next turn
-          if (voiceStateRef.current === 'live' && recognitionRef.current) {
+          // Resume speech recognition only in hands_free mode (in PTT mode, mic and recognition stay off until spacebar is held)
+          if (voiceStateRef.current === 'live' && voiceModeRef.current === 'hands_free' && recognitionRef.current) {
             try {
               recognitionRef.current.start();
             } catch (e) {}
@@ -1174,7 +1176,15 @@ export default function CollegeVoiceSearchPage() {
 
               isProcessingTurnRef.current = true;
               accumulatedTranscriptRef.current = '';
+              recognitionStartIndexRef.current = -1;
               setLiveAiSubtitle('');
+
+              // Abort speech recognition to reset browser result buffer across turns
+              if (recognitionRef.current) {
+                try {
+                  recognitionRef.current.abort();
+                } catch (e) {}
+              }
 
               const turnId = `native-${Date.now()}`;
               processFinalTranscript(cleanText, turnId, 'native')
@@ -1203,10 +1213,16 @@ export default function CollegeVoiceSearchPage() {
                 return;
               }
 
+              // 4. Mark start index for this turn's speech to prevent re-reading results from previous turns
+              if (recognitionStartIndexRef.current === -1 || recognitionStartIndexRef.current > e.resultIndex) {
+                recognitionStartIndexRef.current = e.resultIndex;
+              }
+              const startIdx = Math.max(0, recognitionStartIndexRef.current);
+
               let interim = '';
               let final = '';
               const now = Date.now();
-              for (let i = 0; i < e.results.length; ++i) {
+              for (let i = startIdx; i < e.results.length; ++i) {
                 if (e.results[i].isFinal) {
                   final += e.results[i][0].transcript + ' ';
                 } else {
@@ -1230,8 +1246,9 @@ export default function CollegeVoiceSearchPage() {
               setLiveAiSubtitle(`🎙️ "${latestSpeech}"`);
               setAgentState('listening');
 
-              // If browser marked it final, commit immediately!
-              if (final.trim()) {
+              // If browser marked it final, commit immediately ONLY IF in hands-free mode!
+              // In push-to-talk mode, NEVER commit mid-hold; wait until the user releases the spacebar/button!
+              if (voiceModeRef.current !== 'push_to_talk' && final.trim()) {
                 commitSpeechTurn(final.trim());
                 return;
               }
@@ -1257,12 +1274,23 @@ export default function CollegeVoiceSearchPage() {
             };
 
             rec.onend = () => {
-              // Auto-restart if voice session is still live AND not currently processing turn
+              // Auto-restart if voice session is still live AND hands-free AND not currently processing turn
               if (
                 voiceStateRef.current === 'live' &&
+                voiceModeRef.current === 'hands_free' &&
                 recognitionRef.current &&
                 !isProcessingTurnRef.current &&
-                (!isResponseActiveRef.current || bargeInRef.current || isPttHoldingRef.current)
+                (!isResponseActiveRef.current || bargeInRef.current)
+              ) {
+                try {
+                  rec.start();
+                } catch (e) {}
+              } else if (
+                voiceStateRef.current === 'live' &&
+                voiceModeRef.current === 'push_to_talk' &&
+                isPttHoldingRef.current &&
+                recognitionRef.current &&
+                !isProcessingTurnRef.current
               ) {
                 try {
                   rec.start();
@@ -1270,7 +1298,12 @@ export default function CollegeVoiceSearchPage() {
               }
             };
 
-            rec.start();
+            // In Push-to-Talk mode, do not start recognition until user holds PTT/Spacebar
+            if (sessionMode !== 'push_to_talk') {
+              try {
+                rec.start();
+              } catch (e) {}
+            }
             recognitionRef.current = rec;
           } catch (srErr) {
             console.warn('Native speech recognition start error:', srErr);
@@ -1309,7 +1342,8 @@ export default function CollegeVoiceSearchPage() {
 
   // Push-to-Talk Press & Release handlers
   const startPttHold = useCallback(() => {
-    if (voiceState !== 'live' || voiceMode !== 'push_to_talk') return;
+    if (voiceStateRef.current !== 'live' || voiceModeRef.current !== 'push_to_talk') return;
+    if (isPttHoldingRef.current) return; // Prevent key repeat
 
     // 1. If counselor was actively speaking, cancel it immediately (barge-in on PTT hold)
     if (isResponseActiveRef.current) {
@@ -1333,6 +1367,7 @@ export default function CollegeVoiceSearchPage() {
     setIsPttHolding(true);
     isPttHoldingRef.current = true;
     accumulatedTranscriptRef.current = '';
+    recognitionStartIndexRef.current = -1;
     setAgentState('listening');
     setLiveAiSubtitle('');
     speechStartTimeRef.current = Date.now();
@@ -1364,16 +1399,23 @@ export default function CollegeVoiceSearchPage() {
     }
     setMicrophoneMuted(false);
 
-    // Ensure native speech recognition is actively running whenever PTT is held
+    // Ensure native speech recognition starts fresh for this PTT hold
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.start();
+        recognitionRef.current.abort();
       } catch (e) {}
+      setTimeout(() => {
+        if (isPttHoldingRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {}
+        }
+      }, 30);
     }
-  }, [voiceState, voiceMode, setMicrophoneMuted]);
+  }, [setMicrophoneMuted]);
 
   const stopPttHold = useCallback(() => {
-    if (voiceState !== 'live' || voiceMode !== 'push_to_talk' || !isPttHolding) return;
+    if (voiceStateRef.current !== 'live' || voiceModeRef.current !== 'push_to_talk' || !isPttHoldingRef.current) return;
     setIsPttHolding(false);
     isPttHoldingRef.current = false;
     setMicrophoneMuted(true);
@@ -1384,7 +1426,7 @@ export default function CollegeVoiceSearchPage() {
       silenceTimerRef.current = null;
     }
 
-    // Keep trailing drain window open for 250ms so in-flight speech chunk from browser recognizer arrives
+    // Keep trailing drain window open for 200ms so in-flight speech chunk from browser recognizer arrives
     isPttDrainingRef.current = true;
     if (pttGraceTimerRef.current) {
       clearTimeout(pttGraceTimerRef.current);
@@ -1393,9 +1435,18 @@ export default function CollegeVoiceSearchPage() {
     pttGraceTimerRef.current = setTimeout(() => {
       isPttDrainingRef.current = false;
       const pttText = accumulatedTranscriptRef.current.trim();
+      accumulatedTranscriptRef.current = '';
+      recognitionStartIndexRef.current = -1;
+      setLiveAiSubtitle('');
+
+      // Stop recognition now that PTT is released
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {}
+      }
+
       if (pttText && !isProcessingTurnRef.current) {
-        accumulatedTranscriptRef.current = '';
-        setLiveAiSubtitle('');
         isProcessingTurnRef.current = true;
         processFinalTranscript(pttText, `native-${Date.now()}`, 'native')
           .finally(() => {
@@ -1405,7 +1456,7 @@ export default function CollegeVoiceSearchPage() {
         setAgentState('idle');
         setStatusText('Live Voice Call Connected');
       }
-    }, 250);
+    }, 200);
 
     if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
       dataChannelRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
@@ -1415,7 +1466,7 @@ export default function CollegeVoiceSearchPage() {
         candidateDcRef.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
       } catch (e) {}
     }
-  }, [voiceState, voiceMode, isPttHolding, setMicrophoneMuted, processFinalTranscript]);
+  }, [setMicrophoneMuted, processFinalTranscript]);
 
   // Keyboard Spacebar shortcut for Push-to-Talk when connected
   useEffect(() => {

@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.core.database import get_db, SessionLocal
 from app.models.schemas import (
@@ -17,17 +18,35 @@ router = APIRouter(prefix="/agents", tags=["Agents"])
 @router.get("", response_model=List[AgentResponse])
 def list_agents(db: Session = Depends(get_db)):
     agents = db.query(AgentDB).all()
+    if not agents:
+        return []
+
+    # Batch query page and entity counts to prevent N+1 query overhead
+    page_counts = dict(
+        db.query(PageDB.agent_id, func.count(PageDB.id))
+        .group_by(PageDB.agent_id)
+        .all()
+    )
+    entity_counts = dict(
+        db.query(EntityDB.agent_id, func.count(EntityDB.id))
+        .group_by(EntityDB.agent_id)
+        .all()
+    )
+
+    # Batch query latest crawl jobs
+    all_jobs = db.query(CrawlJobDB).order_by(CrawlJobDB.started_at.desc()).all()
+    latest_jobs = {}
+    for j in all_jobs:
+        if j.agent_id not in latest_jobs:
+            latest_jobs[j.agent_id] = j
+
     results = []
     for agent in agents:
-        pages_count = db.query(PageDB).filter(PageDB.agent_id == agent.id).count()
-        entities_count = db.query(EntityDB).filter(EntityDB.agent_id == agent.id).count()
-        latest_job = (
-            db.query(CrawlJobDB)
-            .filter(CrawlJobDB.agent_id == agent.id)
-            .order_by(CrawlJobDB.started_at.desc())
-            .first()
-        )
-        active_job_schema = CrawlJobSchema.from_orm(latest_job) if latest_job else None
+        pages_count = page_counts.get(agent.id, 0)
+        entities_count = entity_counts.get(agent.id, 0)
+        latest_job = latest_jobs.get(agent.id)
+        active_job_schema = CrawlJobSchema.model_validate(latest_job) if latest_job else None
+
         results.append(AgentResponse(
             id=agent.id,
             name=agent.name,
@@ -88,7 +107,7 @@ async def create_agent(
 
     background_tasks.add_task(execute_crawl_job, agent_id, job_id, SessionLocal)
 
-    active_job_schema = CrawlJobSchema.from_orm(crawl_job)
+    active_job_schema = CrawlJobSchema.model_validate(crawl_job)
     return AgentResponse(
         id=agent.id,
         name=agent.name,
@@ -125,7 +144,7 @@ def get_agent(agent_id: str, db: Session = Depends(get_db)):
         .first()
     )
 
-    active_job_schema = CrawlJobSchema.from_orm(latest_job) if latest_job else None
+    active_job_schema = CrawlJobSchema.model_validate(latest_job) if latest_job else None
 
     return AgentResponse(
         id=agent.id,
@@ -186,13 +205,13 @@ async def recrawl_agent(
     db.commit()
 
     background_tasks.add_task(execute_crawl_job, agent_id, job_id, SessionLocal)
-    return CrawlJobSchema.from_orm(crawl_job)
+    return CrawlJobSchema.model_validate(crawl_job)
 
 
 @router.get("/{agent_id}/pages", response_model=List[PageSchema])
 def list_agent_pages(agent_id: str, db: Session = Depends(get_db)):
     pages = db.query(PageDB).filter(PageDB.agent_id == agent_id).order_by(PageDB.crawled_at.desc()).all()
-    return [PageSchema.from_orm(p) for p in pages]
+    return [PageSchema.model_validate(p) for p in pages]
 
 
 @router.get("/{agent_id}/pages/{page_id}", response_model=PageDetailSchema)
@@ -202,7 +221,7 @@ def get_page_detail(agent_id: str, page_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Page not found")
     
     entities = db.query(EntityDB).filter(EntityDB.page_id == page_id).all()
-    entity_schemas = [EntitySchema.from_orm(e) for e in entities]
+    entity_schemas = [EntitySchema.model_validate(e) for e in entities]
 
     return PageDetailSchema(
         id=page.id,
@@ -220,4 +239,4 @@ def get_page_detail(agent_id: str, page_id: str, db: Session = Depends(get_db)):
 @router.get("/{agent_id}/entities", response_model=List[EntitySchema])
 def list_agent_entities(agent_id: str, db: Session = Depends(get_db)):
     entities = db.query(EntityDB).filter(EntityDB.agent_id == agent_id).order_by(EntityDB.created_at.desc()).all()
-    return [EntitySchema.from_orm(e) for e in entities]
+    return [EntitySchema.model_validate(e) for e in entities]

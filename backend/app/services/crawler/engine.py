@@ -58,7 +58,7 @@ async def execute_crawl_job(agent_id: str, job_id: str, db_session_factory):
         async with httpx.AsyncClient(
             timeout=settings.CRAWL_TIMEOUT,
             follow_redirects=True,
-            verify=False,
+            verify=settings.VERIFY_SSL,
             headers={"User-Agent": BROWSER_USER_AGENT, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
         ) as client:
 
