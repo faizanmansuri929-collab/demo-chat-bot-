@@ -7,21 +7,27 @@ import { api } from '@/lib/api';
 const DEMO_QA = [
   {
     q: 'What can OmniAgent do?',
-    keys: ['what', 'omniagent', 'can', 'do', 'your product', 'platform', 'who are'],
-    a: 'OmniAgent turns your existing website into an AI assistant that can:\n\n- **Answer questions** from your live pages, with clickable sources\n- **Capture leads** — names, emails and phone numbers, in conversation\n- **Speak with visitors** using a real-time voice assistant\n- **Work around the clock** so common questions never wait for office hours\n\nYou create it in three steps: add your website URL, let OmniAgent read your pages, then launch.',
-    sources: ['omniagent-ai.example/docs']
+    keys: ['what', 'omniagent', 'can', 'do', 'your product', 'platform', 'who are', 'features'],
+    a: '**OmniAgent AI** is a universal website-to-AI agent platform that transforms any public website into an intelligent, multi-modal assistant.\n\n- 🎙️ **Realtime WebRTC Voice**: Speak naturally with visitors using ultra-low latency voice (Push-to-Talk & Hands-free).\n- 🔍 **Live Grounded Web Search**: Directly reads your live website sitemap with 10-minute caching and zero-hallucination citations.\n- 🎯 **Lead Engine & CRM**: Captures prospective leads (Name, Email, Phone, Interest) and auto-scores them (0–100).\n- 🧠 **ChromaDB Vector RAG**: Deep crawling with tenant-isolated vector search and hybrid BM25 ranking.\n- ⚡ **Instant FAQ Matching**: Deterministic sub-millisecond keyword/regex responses at $0 LLM cost.\n- 🛒 **eCommerce Scraper**: Automated catalog extraction (like Instamart) with price tracking and Excel/CSV export.\n- 🔌 **Embeddable Widget**: Add one `<script>` tag to embed the assistant on any website.',
+    sources: ['omniagent.ai/features', 'omniagent.ai/docs']
   },
   {
     q: 'How do I create an assistant?',
     keys: ['how', 'create', 'build', 'start', 'setup', 'set up', 'make', 'assistant'],
-    a: 'Creating an assistant takes three steps:\n\n1. **Add your website** — paste your homepage or sitemap URL\n2. **We read your pages** — OmniAgent discovers your content and prepares answers\n3. **Launch** — configure, test and deploy\n\nTry it now: select a template and enter your website URL.',
-    sources: null
+    a: 'Creating an assistant takes three simple steps:\n\n1. **Add your website** — paste your homepage or XML sitemap link in the wizard\n2. **Automated Deep Crawl** — OmniAgent discovers your content, extracts structured entities, and builds a grounded knowledge base\n3. **Launch & Embed** — configure voice/text personas, test in the playground, and deploy using a single `<script>` tag on your website!',
+    sources: ['omniagent.ai/get-started', 'omniagent.ai/create']
   },
   {
     q: 'Can it capture leads for my team?',
-    keys: ['lead', 'capture', 'sales', 'crm', 'contact', 'email', 'phone'],
-    a: 'Yes. The assistant can ask for a visitor\'s name, email and phone during the conversation, then:\n\n- Score the lead based on what was captured (0–100)\n- Track its status from **New → Contacted → Qualified → Converted**\n- Export everything to CSV for your CRM\n\nOpen the **Lead Engine** inside the navbar to see the live dashboard.',
-    sources: ['omniagent-ai.example/leads']
+    keys: ['lead', 'capture', 'sales', 'crm', 'contact', 'email', 'phone', 'scoring'],
+    a: 'Yes! OmniAgent includes a full-featured **Lead Engine & CRM**:\n\n- **In-Conversation Capture**: Seamlessly asks for name, email, phone number, and interest\n- **Automated Lead Scoring (0–100)**: Calculates quality based on verified contact fields and high-intent queries\n- **Pipeline Tracking**: Moves leads across stages: **New ➔ Contacted ➔ Qualified ➔ Converted**\n- **Counselor / Team Assignment**: Automatically routes leads to specific team members\n- **CSV / Excel Export**: One-click export directly to your CRM',
+    sources: ['omniagent.ai/lead-engine', 'omniagent.ai/crm']
+  },
+  {
+    q: 'How does Realtime Voice work?',
+    keys: ['voice', 'webrtc', 'mic', 'spacebar', 'push to talk', 'audio', 'sound', 'speech'],
+    a: 'OmniAgent features an enterprise-grade **Realtime Voice Assistant**:\n\n- ⚡ **Ultra-Low Latency**: Powered by OpenAI Realtime WebRTC and browser native Web Speech API\n- 🎙️ **Dual Modes**: Push-to-Talk (hold Spacebar to speak) and Hands-free voice detection\n- 📊 **Audio & Screen Sync**: Speaks a concise natural summary aloud while rendering complete Markdown tables on the screen\n- 🌐 **Bilingual**: Seamlessly understands and speaks natural Indian English and Hindi/Hinglish',
+    sources: ['omniagent.ai/voice', 'omniagent.ai/webrtc']
   }
 ];
 
@@ -29,8 +35,8 @@ export default function InteractiveDemo() {
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string; sources?: string[] | null }>>([
     {
       role: 'assistant',
-      text: "Hi! I'm a **demo of an OmniAgent assistant**. Ask me about the product, or tap a suggestion.\n\n> Responses here are interactive examples — fully grounded in website content.",
-      sources: null
+      text: "👋 **Hello! Welcome to the OmniAgent AI Interactive Demo.**\n\nI can show you how OmniAgent transforms any public website into a multi-modal AI assistant with:\n- 🎙️ **Realtime WebRTC Voice Assistant** (Push-to-Talk & Hands-free)\n- 🔍 **Live Grounded Web Search** with verified citations\n- 🎯 **Lead Engine & CRM** to capture & score visitors\n- 📦 **eCommerce Product Scraper** & catalog export\n\nAsk me anything about OmniAgent, or try a suggested question below!",
+      sources: ['omniagent.ai/overview', 'omniagent.ai/features']
     }
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -45,10 +51,11 @@ export default function InteractiveDemo() {
     setIsTyping(true);
 
     try {
-      const res = await api.chatCollegeProject('proj_poornima', q, []);
+      const historyTurns = messages.map(m => ({ role: m.role, content: m.text }));
+      const res = await api.chatPlatformDemo(q, historyTurns);
       if (res && res.answer) {
         setIsTyping(false);
-        const sourceUrls = (res.sources || []).map((s: any) => typeof s === 'string' ? s : (s.url || s.title));
+        const sourceUrls = (res.sources || []).map((s: any) => typeof s === 'string' ? s : (s.url || s.title || String(s)));
         setMessages((prev) => [
           ...prev,
           {
@@ -74,8 +81,8 @@ export default function InteractiveDemo() {
           ...prev,
           {
             role: 'assistant',
-            text: `In this live assistant preview, I search your website in real-time for "${q}" and return grounded answers with verified citations.\n\nTry the quick suggestion buttons below!`,
-            sources: ['website-source/overview']
+            text: `OmniAgent AI connects directly to your website and answers questions grounded strictly in your content with citations.\n\nYou can ask about features, how to build an assistant, voice capabilities, lead engine, or try the quick buttons below!`,
+            sources: ['omniagent.ai/features', 'omniagent.ai/docs']
           }
         ]);
       }

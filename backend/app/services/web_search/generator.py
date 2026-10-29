@@ -42,7 +42,8 @@ async def generate_college_web_search_answer(
     include_debug: bool = True,
     db: Optional[Session] = None,
     system_prompt_override: Optional[str] = None,
-    voice_mode: bool = False
+    voice_mode: bool = False,
+    language: Optional[str] = "en-IN"
 ) -> CollegeChatResponse:
     """
     Generic Multi-College Live Web Search Execution Pipeline:
@@ -75,9 +76,14 @@ async def generate_college_web_search_answer(
         max_sources = max(project.max_sources_per_query or 5, 5)
         cache_ttl = project.cache_ttl_seconds or 600
 
-    # 1. Check Short-Term Query Cache (10 mins TTL) - bypass if old refusal cache
+    # 1. Check Short-Term Query Cache (10 mins TTL) - isolated by project, query and language
     clean_query = user_message.strip()
-    query_hash = hashlib.md5(f"{project_id}_{clean_query.lower()}_{len(history)}".encode("utf-8")).hexdigest()
+    hindi_tokens = {"hai", "hain", "kya", "kitna", "kitni", "kaise", "batao", "kahiye", "bataiye", "shulk", "kharcha", "daakhila"}
+    has_hindi_tokens = any(t in re.findall(r'\b\w+\b', clean_query.lower()) for t in hindi_tokens)
+    is_hindi_mode = (language == "hi") or has_hindi_tokens
+    effective_lang = "hi" if is_hindi_mode else "en-IN"
+
+    query_hash = hashlib.md5(f"{project_id}_{clean_query.lower()}_{effective_lang}_{len(history)}".encode("utf-8")).hexdigest()
     now = datetime.datetime.utcnow()
 
     if db and not history:
@@ -98,7 +104,7 @@ async def generate_college_web_search_answer(
             cached_spoken = getattr(cached, "spoken_summary", None) or build_spoken_summary(
                 intent=cached.detected_intent or "general",
                 college_name=college_name,
-                language="hi" if any(w in user_message.lower() for w in ["hai", "kya", "kitna", "kitni"]) else "en-IN",
+                language=effective_lang,
                 answer_markdown=cached.answer
             )
 
@@ -129,11 +135,24 @@ async def generate_college_web_search_answer(
 
     # Handle Off-Topic Query
     if intent_info.get("is_off_topic"):
-        answer = (
-            f"I am the official AI web assistant for **{college_name}** ({base_domain}).\n\n"
-            f"I can only answer questions related to {college_name} (such as programs, courses, admissions, eligibility, fees, hostels, campus life, and placements).\n\n"
-            f"Please ask a question about {college_name}!"
-        )
+        if effective_lang == "hi":
+            answer = (
+                f"Main **{college_name}** ({base_domain}) ka official AI assistant hoon.\n\n"
+                f"Main sirf {college_name} se jude sawaalon ke jawab de sakta hoon (jaise programs, courses, admissions, eligibility, fees, hostels aur placements).\n\n"
+                f"Kripya {college_name} ke baare mein sawaal poochhein!"
+            )
+            spoken_summary = (
+                f"Main sirf {college_name} ke admissions, fees, courses ya hostel ke baare mein bata sakta hoon."
+            )
+        else:
+            answer = (
+                f"I am the official AI web assistant for **{college_name}** ({base_domain}).\n\n"
+                f"I can only answer questions related to {college_name} (such as programs, courses, admissions, eligibility, fees, hostels, campus life, and placements).\n\n"
+                f"Please ask a question about {college_name}!"
+            )
+            spoken_summary = (
+                f"I can only answer questions about {college_name} admissions, fees, courses, and hostels."
+            )
         debug_trace = WebSearchDebugTrace(
             user_query=user_message,
             detected_intent="off_topic",
@@ -143,9 +162,6 @@ async def generate_college_web_search_answer(
             ai_link_selection_reason=f"Query outside {college_name} domain; polite refusal triggered.",
             cache_hit=False,
             processing_time_ms=round((time.time() - start_time) * 1000, 2)
-        )
-        spoken_summary = (
-            f"I can only answer questions about {college_name} admissions, fees, courses, and hostels."
         )
         return CollegeChatResponse(
             project_id=project_id,
@@ -161,33 +177,78 @@ async def generate_college_web_search_answer(
 
     # Handle Greeting or Identity
     if intent_info.get("is_greeting"):
-        if detected_intent == "bot_identity":
-            answer = (
-                f"👋 **Namaste! I am the official AI Voice Counselor for {college_name}.**\n\n"
-                f"I am directly connected to the official {college_name} portal (`{base_domain}`) to provide verified information for students and parents. You can ask me about:\n"
-                f"- 🎓 **Degrees & Specializations** (B.Tech CSE/AI, MBA, BCA, MCA, etc.)\n"
-                f"- 🏛️ **Admission Criteria, Cutoffs & REAP Process**\n"
-                f"- 💰 **Fee Structure & Merit Scholarships**\n"
-                f"- 💼 **Placements, Highest Packages & Top Recruiters**\n"
-                f"- 🛏️ **Hostel Accommodation, Air-Cooled Rooms & Mess Facilities**\n\n"
-                f"How may I help you today?"
-            )
-        elif system_prompt_override:
-            answer = (
-                f"👋 **Hello! Welcome to {college_name} Admissions (2026-27).**\n\n"
-                f"Which course or programme are you interested in (e.g., B.Tech CSE, MBA, BCA, B.Des, MCA)?\n\n"
-                f"💡 *Tip: Feel free to share your **Name** and **Mobile Number** so I can send the official 2026 fee structure, scholarship calculator, and brochure directly to your WhatsApp!*"
-            )
+        if effective_lang == "hi":
+            if detected_intent == "bot_identity":
+                answer = (
+                    f"👋 **Namaste! Main {college_name} ka official AI Voice Counselor hoon.**\n\n"
+                    f"Main {college_name} official portal (`{base_domain}`) se verified jaankari deta hoon. Aap mujhse poochh sakte hain:\n"
+                    f"- 🎓 **Degrees & Specializations** (B.Tech CSE/AI, MBA, BCA, MCA)\n"
+                    f"- 🏛️ **Admission Criteria, Cutoffs & REAP Process**\n"
+                    f"- 💰 **Fee Structure & Merit Scholarships**\n"
+                    f"- 💼 **Placements, Highest Packages & Recruiters**\n"
+                    f"- 🛏️ **Hostel Accommodation & Facilities**\n\n"
+                    f"Main aapki kya madad kar sakta hoon?"
+                )
+                spoken_summary = (
+                    f"Namaste! Main {college_name} ka official AI counselor hoon. "
+                    f"Aap admissions, fees, courses ya hostel ke baare mein poochh sakte hain."
+                )
+            elif system_prompt_override:
+                answer = (
+                    f"👋 **Namaste! {college_name} Admissions (2026-27) mein aapka swagat hai.**\n\n"
+                    f"Aap kis course ya programme me interest rakhte hain (jaise B.Tech CSE, MBA, BCA, B.Des, MCA)?\n\n"
+                    f"💡 *Tip: Aap apna **Name** aur **Mobile Number** share kar sakte hain taaki brochure aur fee structure WhatsApp par bhej sakein.*"
+                )
+                spoken_summary = (
+                    f"Namaste! {college_name} admissions mein aapka swagat hai. Aap kis course ke baare mein jaanna chahte hain?"
+                )
+            else:
+                answer = (
+                    f"👋 **Namaste! {college_name} Live Web Assistant mein aapka swagat hai.**\n\n"
+                    f"Main official website (`{base_domain}`) se live juda hua hoon. Aap mujhse poochh sakte hain:\n"
+                    f"- 🎓 **Courses & Academic Programs**\n"
+                    f"- 🏛️ **Admission Procedure & Eligibility**\n"
+                    f"- 💰 **Fee Structure & Scholarships**\n"
+                    f"- 💼 **Campus Placements, Highest Packages & Recruiters**\n"
+                    f"- 🛏️ **Hostels, Mess & Campus Facilities**\n\n"
+                    f"Aap {college_name} ke baare mein kya jaanna chahte hain?"
+                )
+                spoken_summary = (
+                    f"Namaste! Main {college_name} ka official AI counselor hoon. "
+                    f"Aap admissions, fees, ya courses ke baare mein poochh sakte hain."
+                )
         else:
-            answer = (
-                f"👋 **Hello! Welcome to {college_name} Live Web Assistant.**\n\n"
-                f"I am dynamically connected to the official website (`{base_domain}`) with live sitemap search enabled. You can ask me about:\n"
-                f"- 🎓 **Courses & Academic Programs**\n"
-                f"- 🏛️ **Admission Procedure & Eligibility**\n"
-                f"- 💰 **Fee Structure & Scholarships**\n"
-                f"- 💼 **Campus Placements, Highest Packages & Recruiters**\n"
-                f"- 🛏️ **Hostels, Mess & Campus Facilities**\n\n"
-                f"What would you like to know about {college_name}?"
+            if detected_intent == "bot_identity":
+                answer = (
+                    f"👋 **Namaste! I am the official AI Voice Counselor for {college_name}.**\n\n"
+                    f"I am directly connected to the official {college_name} portal (`{base_domain}`) to provide verified information for students and parents. You can ask me about:\n"
+                    f"- 🎓 **Degrees & Specializations** (B.Tech CSE/AI, MBA, BCA, MCA, etc.)\n"
+                    f"- 🏛️ **Admission Criteria, Cutoffs & REAP Process**\n"
+                    f"- 💰 **Fee Structure & Merit Scholarships**\n"
+                    f"- 💼 **Placements, Highest Packages & Top Recruiters**\n"
+                    f"- 🛏️ **Hostel Accommodation, Air-Cooled Rooms & Mess Facilities**\n\n"
+                    f"How may I help you today?"
+                )
+            elif system_prompt_override:
+                answer = (
+                    f"👋 **Hello! Welcome to {college_name} Admissions (2026-27).**\n\n"
+                    f"Which course or programme are you interested in (e.g., B.Tech CSE, MBA, BCA, B.Des, MCA)?\n\n"
+                    f"💡 *Tip: Feel free to share your **Name** and **Mobile Number** so I can send the official 2026 fee structure, scholarship calculator, and brochure directly to your WhatsApp!*"
+                )
+            else:
+                answer = (
+                    f"👋 **Hello! Welcome to {college_name} Live Web Assistant.**\n\n"
+                    f"I am dynamically connected to the official website (`{base_domain}`) with live sitemap search enabled. You can ask me about:\n"
+                    f"- 🎓 **Courses & Academic Programs**\n"
+                    f"- 🏛️ **Admission Procedure & Eligibility**\n"
+                    f"- 💰 **Fee Structure & Scholarships**\n"
+                    f"- 💼 **Campus Placements, Highest Packages & Recruiters**\n"
+                    f"- 🛏️ **Hostels, Mess & Campus Facilities**\n\n"
+                    f"What would you like to know about {college_name}?"
+                )
+            spoken_summary = (
+                f"Namaste! I am the official AI counselor for {college_name}. "
+                f"How can I help you with admissions, fees, or courses today?"
             )
         citations = []
         if selected_sources:
@@ -218,10 +279,6 @@ async def generate_college_web_search_answer(
             ai_link_selection_reason="Standard welcome greeting response.",
             cache_hit=False,
             processing_time_ms=round((time.time() - start_time) * 1000, 2)
-        )
-        spoken_summary = (
-            f"Namaste! I am the official AI counselor for {college_name}. "
-            f"How can I help you with admissions, fees, or courses today?"
         )
         return CollegeChatResponse(
             project_id=project_id,
@@ -261,6 +318,20 @@ async def generate_college_web_search_answer(
             history_lines.append(f"{role_label}: {h.content}")
         history_context = "PREVIOUS CONVERSATION HISTORY:\n" + "\n".join(history_lines) + "\n\n"
 
+    if effective_lang == "hi":
+        lang_rule = (
+            "5. LANGUAGE REQUIREMENT (STRICT HINDI / HINGLISH):\n"
+            "   - The user has chosen HINDI. You MUST respond in Hindi (conversational Hinglish written in Latin script, standard for Indian university counseling).\n"
+            "   - In <<<TEXT_RESULT_OUTPUT>>>: Write detailed, structured explanations in Hindi/Hinglish (e.g., 'Poornima University mein B.Tech CSE ki annual tuition fees 1,60,000 rupees hai. Niche fee table di gayi hai:'). Keep technical degrees, course titles, and tables clear.\n"
+            "   - In <<<SPOKEN_SUMMARY>>>: Provide a 1-2 sentence spoken summary in 100% natural conversational Hindi/Hinglish for voice reading (e.g., 'Poornima University mein B.Tech CSE ki annual fees 1 lakh 60 hazar rupaye hai. Saari details screen par show kar di gayi hain.'). NEVER speak in pure English. Do NOT include markdown symbols, asterisks (*), or bullet points in SPOKEN_SUMMARY."
+        )
+    else:
+        lang_rule = (
+            "5. LANGUAGE REQUIREMENT (ENGLISH):\n"
+            "   - In <<<TEXT_RESULT_OUTPUT>>>: Detailed, authoritative markdown answer in English.\n"
+            "   - In <<<SPOKEN_SUMMARY>>>: A concise 1-2 sentence natural conversational spoken summary in English suitable for voice reading. Do NOT include markdown symbols or asterisks."
+        )
+
     prompt = f"""LIVE SEARCHED {college_name.upper()} OFFICIAL WEBSITE CONTEXT ({base_domain}):
 {context_str}
 
@@ -272,14 +343,15 @@ CRITICAL INSTRUCTIONS:
 2. If the user asks about fees, provide a comprehensive semester-wise and annual fee breakdown formatted in clean markdown tables.
 3. If the user asks about admissions, eligibility, branches, or hostels, list all relevant options and criteria in clean bullet points.
 4. DO NOT repeat questions for information that the student has already provided in previous turns.
-5. You MUST format your response into TWO clearly delimited sections:
+{lang_rule}
+6. You MUST format your response into TWO clearly delimited sections:
 
 <<<TEXT_RESULT_OUTPUT>>>
-[Detailed, authoritative markdown answer for display on the screen. Include clear headings, bullet points, official numbers, and tables as applicable. Do NOT omit important fee figures or details.]
+[Detailed markdown answer for display on the screen according to the language requirement.]
 <<<END_TEXT_RESULT_OUTPUT>>>
 
 <<<SPOKEN_SUMMARY>>>
-[A concise 1-3 sentence natural conversational spoken summary that answers the core question directly with key numbers or facts, suitable for real-time voice audio reading by GPT. NEVER include markdown symbols, asterisks, bullet points, or tables here. Pronounce numbers naturally (e.g. '1 lakh 21 thousand rupees'). Match language: if the user asked in Hindi/Hinglish, speak in natural Hindi/Hinglish; if English, speak in English.]
+[A concise 1-2 sentence spoken summary for voice reading according to the language requirement. Pronounce numbers naturally.]
 <<<END_SPOKEN_SUMMARY>>>
 """
 
@@ -303,17 +375,24 @@ CRITICAL INSTRUCTIONS:
     else:
         answer = re.sub(r'<<<.*?>>>', '', raw_answer).strip()
 
-    is_hindi = any(w in user_message.lower() for w in ["hai", "kya", "kitna", "kitni", "kaise", "batao", "shulk", "kharcha", "daakhila"])
-    default_lang = "hi" if is_hindi else "en-IN"
-
     if spoken_match:
         spoken_summary = spoken_match.group(1).strip()
         spoken_summary = re.sub(r'[*_#`]', '', spoken_summary).strip()
+        if effective_lang == "hi":
+            hindi_tokens = {"hai", "hain", "ki", "ka", "ke", "ko", "me", "mein", "se", "aur", "ya", "bhi", "yeh", "woh", "aap", "aapki", "aapke", "namaste", "rupaye", "hazar", "lakh", "par", "di", "gayi", "bata", "shulk"}
+            spoken_words = set(re.findall(r'\b\w+\b', spoken_summary.lower()))
+            if not (spoken_words & hindi_tokens):
+                spoken_summary = build_spoken_summary(
+                    intent=detected_intent,
+                    college_name=college_name,
+                    language="hi",
+                    answer_markdown=answer
+                )
     else:
         spoken_summary = build_spoken_summary(
             intent=detected_intent,
             college_name=college_name,
-            language=default_lang,
+            language=effective_lang,
             answer_markdown=answer
         )
 

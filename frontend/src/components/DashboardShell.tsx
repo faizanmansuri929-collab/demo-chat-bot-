@@ -132,7 +132,7 @@ export default function DashboardShell({ children, activeNav }: DashboardShellPr
           <div className="p-3 border-t bd space-y-2">
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] t3">
               <span className={`w-2 h-2 rounded-full shrink-0 ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-              <span>{isBackendConnected ? 'Backend connected (port 8000)' : 'Demo mode — backend not connected'}</span>
+              <span>{isBackendConnected ? 'Backend connected' : 'Demo mode — backend not connected'}</span>
             </div>
             <button
               onClick={toggleTheme}
@@ -263,7 +263,7 @@ export default function DashboardShell({ children, activeNav }: DashboardShellPr
             <div className="pt-3 mt-2 border-t bd space-y-1">
               <div className="flex items-center gap-2 px-2 py-1.5 text-[11px] t3">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-                <span>{isBackendConnected ? 'Backend connected (port 8000)' : 'Demo mode — backend not connected'}</span>
+                <span>{isBackendConnected ? 'Backend connected' : 'Demo mode — backend not connected'}</span>
               </div>
               <Link
                 href="/"

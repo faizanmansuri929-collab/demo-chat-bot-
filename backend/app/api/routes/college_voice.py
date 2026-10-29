@@ -1,4 +1,5 @@
 import os
+import re
 import copy
 import json
 import time
@@ -48,7 +49,7 @@ def _check_rate_limit(ip: str) -> bool:
 # ---------------------------------------------------------------------------
 class CreateVoiceSessionRequest(BaseModel):
     project_id: str = Field(..., min_length=1)
-    voice: Literal["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"] = "verse"
+    voice: Literal["alloy", "ash", "ballad", "cedar", "coral", "echo", "marin", "sage", "shimmer", "verse"] = "verse"
     language: Literal["en-IN", "hi"] = "en-IN"
     mode: Literal["hands_free", "push_to_talk"] = "push_to_talk"
     mic_profile: Literal["near_field", "far_field"] = "near_field"
@@ -152,8 +153,15 @@ VOICE_ONLY_INSTRUCTIONS = (
 # `gpt-transcribe` params (languages/keywords) are unverified; use whisper-1 only.
 TRANSCRIPTION_MODEL = "whisper-1"
 
-# Realtime model fallback order (TASK B)
-REALTIME_MODEL_FALLBACK = ["gpt-realtime-mini", "gpt-realtime"]
+# Realtime model fallback order (TASK B) - defaults to gpt-realtime-2.1-mini
+REALTIME_MODEL_FALLBACK = [
+    "gpt-realtime-2.1-mini",
+    "gpt-realtime-2.1",
+    "gpt-realtime-mini",
+    "gpt-4o-mini-realtime-preview",
+    "gpt-realtime",
+    "gpt-4o-realtime-preview"
+]
 
 
 def _build_keywords(college_name: str, base_domain: str) -> list:
@@ -455,18 +463,25 @@ async def voice_turn(
             history=history_msgs,
             include_debug=False,
             db=db,
-            voice_mode=True
+            voice_mode=True,
+            language=language_hint
         )
     except Exception as e:
         print(f"[VoiceTurn] Search error: {e}")
+        if language_hint == "hi":
+            err_display = f"Maaf kijiye, abhi {college_name} ki yeh jaankari nahi mil paayi. Kripya college se seedhe sampark karein."
+            err_spoken = f"Maaf kijiye, abhi yeh jaankari nahi mil paayi. Kripya {college_name} se seedhe sampark karein."
+        else:
+            err_display = f"I'm sorry, I couldn't find that information right now. Please contact {college_name} directly."
+            err_spoken = f"I'm sorry, I couldn't find that information right now."
         return VoiceTurnResponse(
             should_respond=True,
             reason="search_error",
             found=False,
             intent="general",
             language=language_hint,
-            display_markdown=f"I'm sorry, I couldn't find that information right now. Please contact {college_name} directly.",
-            spoken_summary=f"I'm sorry, I couldn't find that information right now.",
+            display_markdown=err_display,
+            spoken_summary=err_spoken,
             sources=[],
             timings_ms={"total_ms": round((_time.monotonic() - t0) * 1000, 1)}
         )
@@ -483,6 +498,16 @@ async def voice_turn(
             language=language_hint,
             answer_markdown=chat_res.answer
         )
+    elif language_hint == "hi":
+        hindi_tokens = {"hai", "hain", "ki", "ka", "ke", "ko", "me", "mein", "se", "aur", "ya", "bhi", "yeh", "woh", "aap", "aapki", "aapke", "namaste", "rupaye", "hazar", "lakh", "par", "di", "gayi", "bata", "shulk"}
+        spoken_words = set(re.findall(r'\b\w+\b', spoken.lower()))
+        if not (spoken_words & hindi_tokens):
+            spoken = build_spoken_summary(
+                intent=detected_intent,
+                college_name=college_name,
+                language="hi",
+                answer_markdown=chat_res.answer
+            )
 
     sources_out = [
         VoiceSourceOut(
@@ -544,7 +569,8 @@ async def execute_voice_search_tool(
         history=[],
         include_debug=False,
         db=db,
-        voice_mode=True
+        voice_mode=True,
+        language=language
     )
 
     sources_list: List[VoiceSourceItem] = []
@@ -565,6 +591,16 @@ async def execute_voice_search_tool(
             language=language,
             answer_markdown=chat_res.answer
         )
+    elif language == "hi":
+        hindi_tokens = {"hai", "hain", "ki", "ka", "ke", "ko", "me", "mein", "se", "aur", "ya", "bhi", "yeh", "woh", "aap", "aapki", "aapke", "namaste", "rupaye", "hazar", "lakh", "par", "di", "gayi", "bata", "shulk"}
+        spoken_words = set(re.findall(r'\b\w+\b', spoken_summary.lower()))
+        if not (spoken_words & hindi_tokens):
+            spoken_summary = build_spoken_summary(
+                intent=intent,
+                college_name=chat_res.college_name,
+                language="hi",
+                answer_markdown=chat_res.answer
+            )
 
     return VoiceSearchToolResponse(
         query=query,

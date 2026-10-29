@@ -59,3 +59,14 @@ def test_college_voice_session_not_found():
     })
     assert res.status_code == 404
 
+def test_platform_demo_chat():
+    res = client.post("/api/platform-demo/chat", json={
+        "message": "What can OmniAgent do?"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert "answer" in data
+    assert "sources" in data
+    assert "poornima" not in data["answer"].lower()
+
+

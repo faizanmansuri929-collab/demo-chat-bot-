@@ -18,7 +18,7 @@ from typing import Dict, Any, List, Optional
 
 # ---- Fixed reply templates (no LLM) -------
 _GREETING_EN = "Namaste! How can I help you today?"
-_GREETING_HI = "Namaste! Main aapki kya madad kar sakta hoon?"
+_GREETING_HI = "Namaste! Main {college_name} ka official AI counselor hoon. Admissions, fees ya courses ke baare mein poochhein."
 _OFF_TOPIC_EN = "I can only answer questions about {college_name}. Please ask me about admissions, courses, fees, or hostels."
 _OFF_TOPIC_HI = "Main sirf {college_name} ke baare mein bata sakta hoon. Admissions, courses, fees ya hostel ke baare mein poochhe."
 
@@ -237,7 +237,7 @@ def _silent(intent: str, reason: str) -> Dict[str, Any]:
 
 def _respond_greeting(college_name: str, language: str = "en-IN") -> Dict[str, Any]:
     if language == "hi":
-        text = _GREETING_HI
+        text = _GREETING_HI.format(college_name=college_name)
     else:
         text = f"Namaste! I am the official AI counselor for {college_name}. How can I help you with admissions, fees, courses, or hostels today?"
     return {

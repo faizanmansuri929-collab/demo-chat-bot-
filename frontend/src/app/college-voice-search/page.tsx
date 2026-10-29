@@ -24,9 +24,14 @@ interface ChatMessage {
 }
 
 const VOICE_OPTIONS = [
-  { id: 'verse', label: 'Verse (Warm & Natural)' },
+  { id: 'verse', label: 'Verse (Warm & Expressive)' },
   { id: 'alloy', label: 'Alloy (Clear & Neutral)' },
+  { id: 'ash', label: 'Ash (Casual & Conversational)' },
+  { id: 'ballad', label: 'Ballad (Warm & Engaging)' },
+  { id: 'cedar', label: 'Cedar (Deep & Grounded)' },
   { id: 'coral', label: 'Coral (Friendly Counselor)' },
+  { id: 'echo', label: 'Echo (Resonant & Confident)' },
+  { id: 'marin', label: 'Marin (Modern & Expressive)' },
   { id: 'sage', label: 'Sage (Calm & Academic)' },
   { id: 'shimmer', label: 'Shimmer (Bright & Helpful)' },
 ];
@@ -659,12 +664,13 @@ export default function CollegeVoiceSearchPage() {
             } catch (e) {}
             isResponseActiveRef.current = false;
           }
+          const promptLang = langRef.current === 'hi' ? 'Hindi / Hinglish' : 'English';
           activeDc.send(
             JSON.stringify({
               type: 'response.create',
               response: {
                 conversation: 'none',
-                instructions: `You are an audio text-to-speech reader. Speak the following text aloud word-for-word verbatim in a warm, polite Indian accent. Do not greet, do not add filler or commentary, do not answer questions on your own, and do not change any words:\n"${spokenSummary.replace(/"/g, "'")}"`,
+                instructions: `You are an audio text-to-speech reader. Speak the following ${promptLang} text aloud word-for-word verbatim in a warm, polite Indian accent. Do not greet, do not add filler or commentary, do not answer questions on your own, and do not change any words:\n"${spokenSummary.replace(/"/g, "'")}"`,
               },
             })
           );
@@ -947,7 +953,7 @@ export default function CollegeVoiceSearchPage() {
     overrideBargeIn?: boolean,
     overrideProjectId?: string
   ) => {
-    const sessionLang = overrideLang || lang;
+    const sessionLang = overrideLang || langRef.current || lang;
     const sessionMode = overrideMode || voiceMode;
     const sessionMic = overrideMicProfile || micProfile;
     const sessionBargeIn = overrideBargeIn !== undefined ? overrideBargeIn : bargeIn;
@@ -1524,6 +1530,7 @@ export default function CollegeVoiceSearchPage() {
   const setVoiceLanguage = (newLang: 'en-IN' | 'hi') => {
     if (newLang === lang) return;
     setLang(newLang);
+    langRef.current = newLang;
     if (voiceState === 'live') {
       stopVoiceSession();
       setTimeout(() => {
@@ -1676,12 +1683,13 @@ export default function CollegeVoiceSearchPage() {
             } catch (e) {}
             isResponseActiveRef.current = false;
           }
+          const promptLang = langRef.current === 'hi' ? 'Hindi / Hinglish' : 'English';
           dataChannelRef.current.send(
             JSON.stringify({
               type: 'response.create',
               response: {
                 conversation: 'none',
-                instructions: `You are an audio text-to-speech reader. Speak the following text aloud word-for-word verbatim in a warm, polite Indian accent. Do not greet, do not add filler or commentary, do not answer questions on your own, and do not change any words:\n"${spokenSummary.replace(/"/g, "'")}"`,
+                instructions: `You are an audio text-to-speech reader. Speak the following ${promptLang} text aloud word-for-word verbatim in a warm, polite Indian accent. Do not greet, do not add filler or commentary, do not answer questions on your own, and do not change any words:\n"${spokenSummary.replace(/"/g, "'")}"`,
               },
             })
           );
@@ -2030,27 +2038,27 @@ export default function CollegeVoiceSearchPage() {
 
               {/* Sample Questions */}
               <div className="w-full text-left space-y-1.5 pt-3 border-t bd">
-                <p className="text-[11px] font-bold uppercase tracking-wider t3">Sample questions</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider t3">{lang === 'hi' ? 'Udaharan Sawaal' : 'Sample questions'}</p>
                 <button
                   type="button"
-                  onClick={() => triggerVoiceQuery(`What is the B.Tech CSE total fee and semester breakdown at ${collegeName}?`)}
+                  onClick={() => triggerVoiceQuery(lang === 'hi' ? `${collegeName} mein B.Tech CSE ki total fees aur semester structure kya hai?` : `What is the B.Tech CSE total fee and semester breakdown at ${collegeName}?`)}
                   className="sample-q"
                 >
-                  🎓 “B.Tech CSE fees and payment breakdown?”
+                  🎓 {lang === 'hi' ? '“B.Tech CSE fees aur payment breakdown?”' : '“B.Tech CSE fees and payment breakdown?”'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => triggerVoiceQuery(`What are the hostel room options and mess charges at ${collegeName}?`)}
+                  onClick={() => triggerVoiceQuery(lang === 'hi' ? `${collegeName} mein hostel room options aur mess charges kya hain?` : `What are the hostel room options and mess charges at ${collegeName}?`)}
                   className="sample-q"
                 >
-                  🏠 “Hostel AC/Non-AC rooms and mess fees?”
+                  🏠 {lang === 'hi' ? '“Hostel AC/Non-AC rooms aur mess fees?”' : '“Hostel AC/Non-AC rooms and mess fees?”'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => triggerVoiceQuery(`What is the admission process, eligibility criteria, and scholarship at ${collegeName}?`)}
+                  onClick={() => triggerVoiceQuery(lang === 'hi' ? `${collegeName} mein admission eligibility criteria aur scholarships kya hain?` : `What is the admission process, eligibility criteria, and scholarship at ${collegeName}?`)}
                   className="sample-q"
                 >
-                  📋 “Admission eligibility &amp; scholarships?”
+                  📋 {lang === 'hi' ? '“Admission eligibility aur scholarships?”' : '“Admission eligibility & scholarships?”'}
                 </button>
               </div>
             </div>
@@ -2224,8 +2232,8 @@ export default function CollegeVoiceSearchPage() {
                     onChange={(e) => setCustomInput(e.target.value)}
                     placeholder={
                       voiceState === 'live'
-                        ? 'Ask a question or speak into your mic…'
-                        : `Type a question for ${collegeName} or tap Start Call to speak…`
+                        ? (lang === 'hi' ? 'Sawaal poochhein ya mic mein bolein…' : 'Ask a question or speak into your mic…')
+                        : (lang === 'hi' ? `${collegeName} ke baare mein sawaal likhein ya Start Call tap karein…` : `Type a question for ${collegeName} or tap Start Call to speak…`)
                     }
                     className="input !text-xs !py-2 w-full"
                     disabled={isTyping}

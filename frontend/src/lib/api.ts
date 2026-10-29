@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '/api' : 'http://localhost:8000/api');
 
 export interface CrawlJob {
   id: string;
@@ -680,12 +680,33 @@ export const api = {
     return res.data;
   },
 
+  chatPlatformDemo: async (
+    message: string,
+    history?: Array<{ role: string; content?: string; text?: string }>
+  ): Promise<{ answer: string; sources?: string[] | null }> => {
+    const formattedHistory = (history || []).map((h) => ({
+      role: h.role,
+      content: h.content || h.text || ''
+    }));
+    const res = await axios.post(`${API_BASE}/platform-demo/chat`, {
+      message,
+      history: formattedHistory
+    });
+    return res.data;
+  },
+
   checkHealth: async (): Promise<{ status: string; service?: string } | null> => {
     try {
-      const baseUrl = API_BASE.replace(/\/api\/?$/, '');
-      const res = await axios.get(`${baseUrl}/`, { timeout: 2500 });
+      const res = await axios.get(`${API_BASE}/health`, { timeout: 3500 });
       return res.data;
     } catch (e) {
+      try {
+        const baseUrl = API_BASE.replace(/\/api\/?$/, '');
+        if (baseUrl) {
+          const directRes = await axios.get(`${baseUrl}/`, { timeout: 2500 });
+          return directRes.data;
+        }
+      } catch (err) {}
       return null;
     }
   }

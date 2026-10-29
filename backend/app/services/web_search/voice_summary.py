@@ -106,7 +106,7 @@ def _hindi_summary(intent: str, college_name: str, answer_markdown: Optional[str
         return f"{college_name} ke admission process aur eligibility criteria ki verified details screen par show ho rahi hain."
     if "course" in intent or "btech" in intent or "program" in intent:
         return f"{college_name} ke programs aur branches ki verified details screen par show kar di hain."
-    if extracted:
+    if extracted and any(h in extracted.lower() for h in ["hai", "shulk", "fees", "mein", "ka", "ki", "hazaar", "lakh", "kharcha"]):
         return extracted[:150] + ("..." if len(extracted) > 150 else "")
     return f"{college_name} ki official website se verified details screen par show ho rahi hain."
 
